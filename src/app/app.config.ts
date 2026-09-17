@@ -1,12 +1,52 @@
-import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
+import { ApplicationConfig, importProvidersFrom } from '@angular/core';
 import { provideRouter } from '@angular/router';
-
 import { routes } from './app.routes';
-import { provideClientHydration, withEventReplay } from '@angular/platform-browser';
+import { HTTP_INTERCEPTORS, provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
+import { MsalInterceptor, MsalModule, MsalService, MSAL_INSTANCE, MSAL_INTERCEPTOR_CONFIG, MSAL_GUARD_CONFIG, MsalGuard } from '@azure/msal-angular';
+import { PublicClientApplication, InteractionType } from '@azure/msal-browser';
+import { environment } from '../environments/environment';
+
+export function MSALInstanceFactory() {
+  return new PublicClientApplication({
+    auth: {
+      clientId: environment.azure.clientId,
+      authority: environment.azure.authority,
+      redirectUri: environment.azure.redirectUri
+    },
+    // Este bloque asegura que la sesión sobreviva a la redirección
+    cache: {
+      cacheLocation: 'localStorage'
+    }
+  });
+}
+
+export function MSALInterceptorConfigFactory() {
+  return {
+    interactionType: InteractionType.Popup,
+    protectedResourceMap: new Map([
+      [environment.apiBaseUrl + '/*', environment.azure.protectedResourceScopes]
+    ])
+  };
+}
 
 export const appConfig: ApplicationConfig = {
   providers: [
-    provideBrowserGlobalErrorListeners(),
-    provideRouter(routes), provideClientHydration(withEventReplay())
+    provideRouter(routes),
+    provideHttpClient(withInterceptorsFromDi()),
+    {
+      provide: HTTP_INTERCEPTORS,
+      useClass: MsalInterceptor,
+      multi: true
+    },
+    {
+      provide: MSAL_INSTANCE,
+      useFactory: MSALInstanceFactory
+    },
+    {
+      provide: MSAL_INTERCEPTOR_CONFIG,
+      useFactory: MSALInterceptorConfigFactory
+    },
+    MsalService,
+    MsalGuard
   ]
 };
