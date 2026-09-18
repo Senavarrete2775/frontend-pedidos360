@@ -3,30 +3,13 @@ import { MsalService } from '@azure/msal-angular';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../environments/environment';
+import { RouterOutlet } from '@angular/router';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule],
-  template: `
-    <div style="text-align: center; margin-top: 50px;">
-      <h1>Bienvenido a Pedidos360</h1>
-
-      <div *ngIf="!isLoggedIn">
-        <button (click)="login()" style="padding: 10px 20px; font-size: 16px;">Iniciar Sesión con Microsoft</button>
-      </div>
-
-      <div *ngIf="isLoggedIn">
-        <h2 style="color: green;">¡Autenticado correctamente!</h2>
-        <button (click)="llamarBackend()" style="padding: 10px 20px; font-size: 16px; margin-right: 10px;">Llamar al Backend</button>
-        <button (click)="logout()" style="padding: 10px 20px; font-size: 16px;">Cerrar Sesión</button>
-
-        <div *ngIf="mensajeBackend" style="margin-top: 20px; padding: 15px; border: 1px solid #ccc; max-width: 600px; margin-left: auto; margin-right: auto;">
-          <strong>Respuesta del servidor:</strong> <br> {{ mensajeBackend }}
-        </div>
-      </div>
-    </div>
-  `
+  imports: [CommonModule, RouterOutlet],
+  templateUrl: './app.html' // Modificado para leer el archivo HTML
 })
 export class App implements OnInit {
   isLoggedIn = false;
@@ -36,7 +19,6 @@ export class App implements OnInit {
 
   ngOnInit() {
     this.msalService.instance.initialize().then(() => {
-      // Ya no esperamos redirecciones, solo verificamos si ya hay una cuenta en la caché
       const cuentasGuardadas = this.msalService.instance.getAllAccounts();
       if (cuentasGuardadas.length > 0) {
         this.msalService.instance.setActiveAccount(cuentasGuardadas[0]);
@@ -47,7 +29,7 @@ export class App implements OnInit {
 
   login() {
     this.msalService.loginPopup({
-      scopes: environment.azure.protectedResourceScopes
+      scopes: environment.azure.protectedResourceScopes as unknown as string[]
     }).subscribe({
       next: (res) => {
         if (res.account) {
