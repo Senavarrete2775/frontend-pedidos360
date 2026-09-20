@@ -55,6 +55,6 @@ export const appConfig: ApplicationConfig = {
     { provide: MSAL_GUARD_CONFIG, useFactory: MSALGuardConfigFactory },
     MsalService,
     MsalGuard,
-    MsalBroadcastService // <--- Este era el proveedor que faltaba y causaba el error NG0201
+    MsalBroadcastService
   ]
 };

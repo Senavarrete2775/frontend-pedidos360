@@ -34,7 +34,6 @@ import { environment } from '../environments/environment';
 export class App implements OnInit, OnDestroy {
   loginDisplay = false;
 
-  // Getter para que coincida exactamente si tu HTML usa isLoggedIn
   get isLoggedIn(): boolean {
     return this.loginDisplay;
   }
