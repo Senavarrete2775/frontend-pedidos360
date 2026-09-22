@@ -1,121 +1,54 @@
-<style>
-  .login-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-    background-color: #f3f4f6;
-    font-family: 'Segoe UI', system-ui, sans-serif;
-    margin: -8px; /* Elimina márgenes por defecto del body */
-  }
-  .card {
-    background: #ffffff;
-    padding: 40px;
-    border-radius: 12px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.05);
-    text-align: center;
-    width: 100%;
-    max-width: 380px;
-  }
-  .title {
-    color: #111827;
-    font-size: 26px;
-    font-weight: 700;
-    margin-bottom: 5px;
-    margin-top: 0;
-  }
-  .subtitle {
-    color: #6b7280;
-    font-size: 15px;
-    margin-bottom: 30px;
-  }
-  .btn {
-    width: 100%;
-    padding: 12px;
-    border-radius: 6px;
-    font-size: 15px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    border: none;
-    margin-bottom: 12px;
-  }
-  .btn-ms {
-    background-color: #0078d4;
-    color: white;
-  }
-  .btn-ms:hover { background-color: #006abc; }
-  .btn-test {
-    background-color: #f9fafb;
-    color: #374151;
-    border: 1px solid #d1d5db;
-  }
-  .btn-test:hover { background-color: #f3f4f6; }
-  .btn-logout {
-    background-color: transparent;
-    color: #dc2626;
-    border: 1px solid #fca5a5;
-  }
-  .btn-logout:hover { background-color: #fef2f2; }
-  .divider {
-    display: flex;
-    align-items: center;
-    margin: 25px 0;
-    color: #9ca3af;
-    font-size: 12px;
-    font-weight: 600;
-  }
-  .divider::before, .divider::after {
-    content: '';
-    flex: 1;
-    border-bottom: 1px solid #e5e7eb;
-  }
-  .divider:not(:empty)::before { margin-right: 15px; }
-  .divider:not(:empty)::after { margin-left: 15px; }
-  .response-box {
-    margin-top: 25px;
-    padding: 15px;
-    background-color: #f0fdf4;
-    border-left: 4px solid #10b981;
-    border-radius: 4px;
-    text-align: left;
-    font-size: 14px;
-    color: #065f46;
-    word-wrap: break-word;
-    line-height: 1.5;
-  }
-</style>
-
-<div class="login-container">
-  <div class="card">
-    <h1 class="title">Pedidos360</h1>
-    <p class="subtitle">Panel de acceso al sistema</p>
-
-    <!-- Estado: No Autenticado -->
-    <div *ngIf="!isLoggedIn">
-      <button class="btn btn-ms" (click)="login()">Iniciar Sesión con Microsoft</button>
-
-      <div class="divider">MODO LOCAL</div>
-
-      <button class="btn btn-test" (click)="llamarBackend()">
-        Probar conexión al Backend sin Token
-      </button>
-    </div>
-
-    <!-- Estado: Autenticado -->
-    <div *ngIf="isLoggedIn">
-      <div style="color: #10b981; font-weight: 600; margin-bottom: 25px; display: flex; align-items: center; justify-content: center; gap: 8px;">
-        <svg width="20" height="20" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
-        Autenticado correctamente
+<header class="app-navbar">
+  <div class="navbar-container">
+    <div class="brand">
+      <div class="logo-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
+        </svg>
       </div>
-      <button class="btn btn-ms" (click)="llamarBackend()">Consultar Pedidos</button>
-      <button class="btn btn-logout" (click)="logout()">Cerrar Sesión</button>
+      <div>
+        <span class="brand-name">Pedidos360</span>
+        <span class="brand-tag">Cloud Native</span>
+      </div>
     </div>
 
-    <!-- Caja de Respuesta -->
-    <div *ngIf="mensajeBackend" class="response-box">
-      <strong>Servidor:</strong><br>
-      {{ mensajeBackend }}
+    <nav class="nav-links">
+      <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" class="nav-link">Inicio</a>
+      <a routerLink="/pedidos" routerLinkActive="active" class="nav-link">
+        Pedidos
+        <span class="nav-shield" title="Ruta protegida con MsalGuard">🔒 Guard</span>
+      </a>
+    </nav>
+
+    <div class="auth-actions">
+      <div *ngIf="isLoggedIn" class="user-pill">
+        <span class="online-dot"></span>
+        <span class="user-email">{{ usuario?.name || usuario?.username }}</span>
+        <button class="btn-logout" (click)="logout()">Salir</button>
+      </div>
+
+      <div *ngIf="!isLoggedIn">
+        <button class="btn-login-ms" (click)="login()">
+          <svg width="16" height="16" viewBox="0 0 23 23">
+            <path fill="#f35325" d="M1 1h10v10H1z"/>
+            <path fill="#81bc06" d="M12 1h10v10H12z"/>
+            <path fill="#05a6f0" d="M1 12h10v10H1z"/>
+            <path fill="#ffba08" d="M12 12h10v10H12z"/>
+          </svg>
+          Iniciar Sesión
+        </button>
+      </div>
     </div>
   </div>
-</div>
+</header>
+
+<main class="main-content">
+  <router-outlet></router-outlet>
+</main>
+
+<footer class="app-footer">
+  <div class="footer-container">
+    <span>DSY1107 - Desarrollo Cloud Native I &bull; Duoc UC &bull; Evaluación Parcial N° 1</span>
+    <span class="tech-stack">Angular + MSAL &bull; Spring Boot en EC2 &bull; Azure AD</span>
+  </div>
+</footer>

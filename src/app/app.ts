@@ -6,10 +6,10 @@ import {
 } from '@angular/core';
 import {
   RouterLink,
+  RouterLinkActive,
   RouterOutlet
 } from '@angular/router';
 import { CommonModule } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
 import {
   MsalBroadcastService,
   MsalService
@@ -27,27 +27,24 @@ import { environment } from '../environments/environment';
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, RouterLink, RouterOutlet],
+  imports: [CommonModule, RouterLink, RouterLinkActive, RouterOutlet],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
 export class App implements OnInit, OnDestroy {
   loginDisplay = false;
-
-  get isLoggedIn(): boolean {
-    return this.loginDisplay;
-  }
-
   usuario: any = null;
-  mensajeBackend = '';
   private readonly destroying$ = new Subject<void>();
 
   constructor(
     private authService: MsalService,
     private msalBroadcastService: MsalBroadcastService,
-    private http: HttpClient,
     private cdr: ChangeDetectorRef
   ) {}
+
+  get isLoggedIn(): boolean {
+    return this.loginDisplay;
+  }
 
   ngOnInit(): void {
     this.authService
@@ -58,6 +55,7 @@ export class App implements OnInit, OnDestroy {
           if (result?.account) {
             this.authService.instance.setActiveAccount(result.account);
           }
+          this.actualizarEstado();
         },
         error: (error) => console.error('Error MSAL:', error)
       });
@@ -114,20 +112,6 @@ export class App implements OnInit, OnDestroy {
       ?? accounts[0]
       ?? null;
     this.cdr.detectChanges();
-  }
-
-  llamarBackend() {
-    this.http.get(environment.apiBaseUrl + '/api/pedidos', { responseType: 'text' }).subscribe({
-      next: (res) => {
-        this.mensajeBackend = res;
-        this.cdr.detectChanges();
-      },
-      error: (err) => {
-        console.error(err);
-        this.mensajeBackend = 'Error de conexión. Asegúrate de que Spring Boot está corriendo.';
-        this.cdr.detectChanges();
-      }
-    });
   }
 
   ngOnDestroy(): void {
