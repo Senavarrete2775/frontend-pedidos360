@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { MsalService } from '@azure/msal-angular';
 import { AccountInfo } from '@azure/msal-browser';
@@ -8,7 +9,7 @@ import { environment } from '../../environments/environment';
 @Component({
   selector: 'app-pedidos',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   template: `
     <div class="pedidos-container">
       <!-- Ficha de Usuario y Claims de Token -->
@@ -70,6 +71,42 @@ import { environment } from '../../environments/environment';
           <button class="btn btn-warning" (click)="consultarAdmin()">
             Probar Endpoint con Rol Admin (/api/pedidos/admin)
           </button>
+        </div>
+
+        <!-- Formulario para Crear Pedido y Publicar a RabbitMQ -->
+        <div class="form-container" style="margin-top: 20px; padding: 16px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+          <h4 style="margin: 0 0 10px 0; color: #1e293b;">Registrar Nuevo Pedido (Productor RabbitMQ)</h4>
+          <p style="font-size: 13px; color: #64748b; margin-bottom: 12px;">
+            Al crear un pedido, el backend lo persiste en la BD y emite automáticamente un evento asíncrono a <strong>pedidos.exchange</strong>.
+          </p>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <input type="text" [(ngModel)]="nuevoCliente" placeholder="Nombre Cliente" style="padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; flex: 1; min-width: 150px;" />
+            <input type="text" [(ngModel)]="nuevoProducto" placeholder="Producto / Servicio" style="padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; flex: 1; min-width: 150px;" />
+            <input type="number" [(ngModel)]="nuevoMonto" placeholder="Monto (CLP)" style="padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; width: 130px;" />
+            <button class="btn btn-success" (click)="crearPedido()">
+              Crear y Enviar a RabbitMQ
+            </button>
+          </div>
+        </div>
+
+        <!-- Panel de Administración RabbitMQ (ms-rabbit-admin) -->
+        <div class="form-container" style="margin-top: 20px; padding: 16px; background: #fdf4ff; border-radius: 8px; border: 1px solid #f0abfc;">
+          <h4 style="margin: 0 0 10px 0; color: #86198f;">Panel Administrador de RabbitMQ (ms-rabbit-admin:8082)</h4>
+          <p style="font-size: 13px; color: #701a75; margin-bottom: 12px;">
+            Prueba de Endpoints REST (POST /queues, DELETE /queues/&#123;name&#125;) y validaciones DTO (Indicadores 6, 7 y 8).
+          </p>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+            <input type="text" [(ngModel)]="nombreNuevaCola" placeholder="Nombre Cola (ej. cola.demo)" style="padding: 8px 12px; border-radius: 6px; border: 1px solid #e879f9; flex: 1; min-width: 180px;" />
+            <button class="btn btn-primary" (click)="crearColaAdmin()">
+              POST /queues (Crear)
+            </button>
+            <button class="btn btn-danger" (click)="eliminarColaAdmin()">
+              DELETE /queues (Eliminar)
+            </button>
+            <button class="btn btn-neutral" (click)="consultarEstadoServicios()">
+              Verificar Estado Microservicios
+            </button>
+          </div>
         </div>
 
         <!-- Alerta de Respuesta / Error -->
@@ -256,6 +293,27 @@ import { environment } from '../../environments/environment';
     .btn-warning:hover {
       background: #d97706;
     }
+    .btn-success {
+      background: #10b981;
+      color: white;
+    }
+    .btn-success:hover {
+      background: #059669;
+    }
+    .btn-danger {
+      background: #ef4444;
+      color: white;
+    }
+    .btn-danger:hover {
+      background: #dc2626;
+    }
+    .btn-neutral {
+      background: #64748b;
+      color: white;
+    }
+    .btn-neutral:hover {
+      background: #475569;
+    }
     .alert {
       padding: 14px 16px;
       border-radius: 8px;
@@ -325,6 +383,15 @@ export class PedidosComponent implements OnInit {
   mensajeEstado = '';
   tipoMensaje: 'success' | 'error' = 'success';
   apiBaseUrl = environment.apiBaseUrl;
+  rabbitAdminApiUrl = environment.rabbitAdminApiUrl || 'http://localhost:8082';
+
+  // Variables para creación de nuevo pedido
+  nuevoCliente = 'Sebastián Gallardo';
+  nuevoProducto = 'Suscripción Cloud Native Pro';
+  nuevoMonto: number | null = 45000;
+
+  // Variables para RabbitAdmin
+  nombreNuevaCola = 'cola.auditoria.pedidos';
 
   constructor(
     private authService: MsalService,
@@ -363,6 +430,93 @@ export class PedidosComponent implements OnInit {
       error: (err) => {
         this.tipoMensaje = 'error';
         this.mensajeEstado = err.error?.message || `Error ${err.status}: ${err.statusText}`;
+      }
+    });
+  }
+
+  crearPedido(): void {
+    if (!this.nuevoCliente || !this.nuevoProducto || !this.nuevoMonto) {
+      this.tipoMensaje = 'error';
+      this.mensajeEstado = 'Por favor complete cliente, producto y monto.';
+      return;
+    }
+
+    const payload = {
+      cliente: this.nuevoCliente,
+      producto: this.nuevoProducto,
+      monto: Number(this.nuevoMonto),
+      estado: 'PENDIENTE'
+    };
+
+    this.http.post<any>(`${environment.apiBaseUrl}/api/pedidos`, payload).subscribe({
+      next: (res) => {
+        this.tipoMensaje = 'success';
+        this.mensajeEstado = `¡Pedido #${res.id} creado en Base de Datos y publicado a RabbitMQ asíncronamente!`;
+        this.cargarPedidos();
+      },
+      error: (err) => {
+        this.tipoMensaje = 'error';
+        this.mensajeEstado = `Error al registrar pedido: ${err.error?.message || err.statusText}`;
+      }
+    });
+  }
+
+  crearColaAdmin(): void {
+    if (!this.nombreNuevaCola.trim()) {
+      this.tipoMensaje = 'error';
+      this.mensajeEstado = 'El nombre de la cola no puede estar vacío.';
+      return;
+    }
+
+    const body = {
+      name: this.nombreNuevaCola.trim(),
+      durable: true,
+      exclusive: false,
+      autoDelete: false
+    };
+
+    this.http.post<any>(`${this.rabbitAdminApiUrl}/queues`, body).subscribe({
+      next: (res) => {
+        this.tipoMensaje = 'success';
+        this.mensajeEstado = `[ms-rabbit-admin: 201 Created] Cola '${res.nombre}' creada exitosamente en RabbitMQ.`;
+      },
+      error: (err) => {
+        this.tipoMensaje = 'error';
+        const msg = err.error?.mensaje || err.error?.error || err.message;
+        this.mensajeEstado = `[ms-rabbit-admin: ${err.status}] Fallo al crear cola: ${msg}`;
+      }
+    });
+  }
+
+  eliminarColaAdmin(): void {
+    if (!this.nombreNuevaCola.trim()) {
+      this.tipoMensaje = 'error';
+      this.mensajeEstado = 'Especifique el nombre de la cola a eliminar.';
+      return;
+    }
+
+    this.http.delete<any>(`${this.rabbitAdminApiUrl}/queues/${this.nombreNuevaCola.trim()}`).subscribe({
+      next: (res) => {
+        this.tipoMensaje = 'success';
+        this.mensajeEstado = `[ms-rabbit-admin: 200 OK] ${res.mensaje}`;
+      },
+      error: (err) => {
+        this.tipoMensaje = 'error';
+        const msg = err.error?.mensaje || err.message;
+        this.mensajeEstado = `[ms-rabbit-admin: ${err.status}] ${msg}`;
+      }
+    });
+  }
+
+  consultarEstadoServicios(): void {
+    this.http.get<any>(`${this.rabbitAdminApiUrl}/status`).subscribe({
+      next: (adminRes) => {
+        this.tipoMensaje = 'success';
+        this.mensajeEstado = `Microservicio ms-rabbit-admin activo: [${adminRes.servicio} - ${adminRes.estado}].`;
+      },
+      error: (err) => {
+        this.tipoMensaje = 'error';
+        this.mensajeEstado = `No se pudo conectar a ms-rabbit-admin (${this.rabbitAdminApiUrl}): ${err.message}`;
       }
     });
   }
