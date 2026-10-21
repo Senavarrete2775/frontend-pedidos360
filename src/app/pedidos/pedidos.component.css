@@ -1,4 +1,4 @@
-/* Animación de entrada suave */
+
 .fade-in {
   animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
@@ -14,7 +14,7 @@
   font-family: inherit;
 }
 
-/* 1. Header Styles */
+
 .dashboard-header {
   margin-bottom: 24px;
 }
@@ -100,7 +100,7 @@
   font-weight: 700;
 }
 
-/* KPI Grid */
+
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -153,7 +153,7 @@
 }
 .font-emerald { color: #059669; }
 
-/* Notification Banner */
+
 .notification-banner {
   display: flex;
   align-items: center;
@@ -195,7 +195,7 @@
 }
 .banner-close:hover { opacity: 1; }
 
-/* 2. Tabs Navigation */
+
 .tabs-nav {
   display: flex;
   gap: 8px;
@@ -228,7 +228,7 @@
   font-weight: 700;
 }
 
-/* Cards Generals */
+
 .card {
   background: white;
   border-radius: 16px;
@@ -269,7 +269,7 @@
   margin: 0;
 }
 
-/* Presets Chips */
+
 .quick-presets {
   display: flex;
   align-items: center;
@@ -310,7 +310,7 @@
 }
 .chip-warning:hover { background: #fde68a; }
 
-/* Order Form */
+
 .form-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -392,7 +392,7 @@
   cursor: not-allowed;
 }
 
-/* Table Bar & Search */
+
 .table-header-bar {
   display: flex;
   justify-content: space-between;
@@ -445,7 +445,7 @@
 }
 .btn-refresh:hover { background: #e2e8f0; }
 
-/* Modern Table */
+
 .table-responsive {
   overflow-x: auto;
 }
@@ -510,7 +510,7 @@
   font-size: 13px;
 }
 
-/* Badges de Estado */
+
 .badge-status {
   display: inline-flex;
   align-items: center;
@@ -548,7 +548,7 @@
   color: #64748b;
 }
 
-/* Services Grid (Tab 2) */
+
 .services-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -597,7 +597,7 @@
   line-height: 1.4;
 }
 
-/* Rabbit Admin Controls */
+
 .admin-actions-box {
   display: flex;
   flex-direction: column;
@@ -641,7 +641,7 @@
 }
 .btn-test:hover { background: #cbd5e1; }
 
-/* Console Box */
+
 .console-box {
   background: #0f172a;
   border-radius: 10px;
@@ -683,7 +683,7 @@
   overflow-y: auto;
 }
 
-/* Tab 3: Security */
+
 .claims-summary-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -782,7 +782,7 @@
 .text-mono { font-family: monospace; }
 .mb-20 { margin-bottom: 20px; }
 
-/* Acciones en la tabla de pedidos */
+
 .btn-delete-row {
   background: transparent;
   border: none;
@@ -803,7 +803,7 @@
   color: #ef4444 !important;
 }
 
-/* Indicador de estado en pestaña */
+
 .status-dot-mini {
   width: 8px;
   height: 8px;
@@ -820,7 +820,7 @@
   box-shadow: 0 0 6px rgba(239, 68, 68, 0.6);
 }
 
-/* Alerta de conexión ms-rabbit-admin */
+
 .admin-offline-alert {
   display: flex;
   align-items: flex-start;
@@ -854,7 +854,7 @@
   background: #e2e8f0;
 }
 
-/* Notificaciones directas en pestaña RabbitMQ */
+
 .admin-toast-banner {
   display: flex;
   align-items: center;
@@ -891,7 +891,7 @@
   opacity: 1;
 }
 
-/* Tabla en vivo de colas RabbitMQ */
+
 .live-queues-box {
   background: white;
   border: 1px solid #e2e8f0;

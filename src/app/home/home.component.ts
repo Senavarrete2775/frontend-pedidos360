@@ -11,7 +11,7 @@ import { environment } from '../../environments/environment';
   template: `
     <div class="home-container">
       <div class="hero-card">
-        <div class="badge-tag">Cloud Native I - Duoc UC</div>
+        <div class="badge-tag">Cloud Native Architecture</div>
         <h1 class="hero-title">Sistema de Gestión Pedidos360</h1>
         <p class="hero-subtitle">
           Arquitectura desacoplada en la nube con Frontend Angular, Backend BFF Spring Boot en AWS EC2, Base de Datos y autenticación federada con Azure Active Directory (MSAL).

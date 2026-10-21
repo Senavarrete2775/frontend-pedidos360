@@ -29,12 +29,11 @@ interface ColaInfo {
   styleUrl: './pedidos.component.css',
   template: `
     <div class="dashboard-wrapper">
-      <!-- 1. Encabezado del Dashboard -->
       <header class="dashboard-header">
         <div class="header-content">
           <div class="header-titles">
             <div class="header-badge">
-              <span class="badge-dot"></span> Cloud Native III &bull; RabbitMQ Microservices
+              <span class="badge-dot"></span> Event-Driven Architecture &bull; RabbitMQ Microservices
             </div>
             <h1 class="header-title">Panel de Control & Mensajería Pedidos360</h1>
             <p class="header-subtitle">
@@ -52,7 +51,6 @@ interface ColaInfo {
           </div>
         </div>
 
-        <!-- KPI Stats Grid -->
         <div class="kpi-grid">
           <div class="kpi-card">
             <div class="kpi-icon icon-orders">
@@ -110,7 +108,6 @@ interface ColaInfo {
         </div>
       </header>
 
-      <!-- Banner de Alertas Globales -->
       <div *ngIf="mensajeEstado" class="notification-banner" [class.banner-error]="tipoMensaje === 'error'" [class.banner-success]="tipoMensaje === 'success'">
         <div class="banner-icon">
           <svg *ngIf="tipoMensaje === 'success'" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -129,7 +126,6 @@ interface ColaInfo {
         <button class="banner-close" (click)="mensajeEstado = ''">&times;</button>
       </div>
 
-      <!-- 2. Pestañas de Navegación Segmentada -->
       <nav class="tabs-nav">
         <button class="tab-btn" [class.tab-active]="activeTab === 'pedidos'" (click)="activeTab = 'pedidos'">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -145,7 +141,7 @@ interface ColaInfo {
             <path d="M4 4a16 16 0 0 1 16 16"></path>
             <circle cx="5" cy="19" r="1"></circle>
           </svg>
-          Consola RabbitMQ & Admin (8082)
+          Consola RabbitMQ & Admin
           <span class="status-dot-mini" [class.dot-online]="adminOnline === true" [class.dot-offline]="adminOnline === false"></span>
         </button>
 
@@ -158,11 +154,7 @@ interface ColaInfo {
         </button>
       </nav>
 
-      <!-- ============================================================== -->
-      <!-- PESTAÑA 1: GESTIÓN DE PEDIDOS & PRODUCTOR AMQP                  -->
-      <!-- ============================================================== -->
       <div *ngIf="activeTab === 'pedidos'" class="tab-content fade-in">
-        <!-- Formulario Moderno para Crear Pedido -->
         <section class="card form-card">
           <div class="card-header-styled">
             <div class="icon-bubble bubble-emerald">
@@ -177,9 +169,8 @@ interface ColaInfo {
             </div>
           </div>
 
-          <!-- Botones de Acceso Rápido para Demostraciones -->
           <div class="quick-presets">
-            <span class="preset-label">Plantillas para defensa docente:</span>
+            <span class="preset-label">Acciones de prueba rápida:</span>
             <button type="button" class="preset-chip chip-success" (click)="cargarPresetValido()">
               ✨ Cargar Pedido Válido (Flujo Exitoso)
             </button>
@@ -232,7 +223,6 @@ interface ColaInfo {
           </form>
         </section>
 
-        <!-- Tabla Estilizada de Pedidos -->
         <section class="card table-card">
           <div class="table-header-bar">
             <div>
@@ -259,7 +249,6 @@ interface ColaInfo {
             </div>
           </div>
 
-          <!-- Tabla Responsive -->
           <div class="table-responsive">
             <table class="modern-table">
               <thead>
@@ -322,11 +311,7 @@ interface ColaInfo {
         </section>
       </div>
 
-      <!-- ============================================================== -->
-      <!-- PESTAÑA 2: CONSOLA RABBITMQ & ADMIN (8082)                     -->
-      <!-- ============================================================== -->
       <div *ngIf="activeTab === 'rabbitmq'" class="tab-content fade-in">
-        <!-- Tarjeta de Salud de los Microservicios -->
         <section class="card mb-20">
           <div class="card-header-styled">
             <div class="icon-bubble bubble-purple">
@@ -339,7 +324,7 @@ interface ColaInfo {
             </div>
             <div>
               <h2 class="card-title">Malla de Microservicios Cloud Native</h2>
-              <p class="card-desc">Estado y roles de cada microservicio en la topología de la Evaluación 3.</p>
+              <p class="card-desc">Estado y roles de cada microservicio en la topología distribuida.</p>
             </div>
           </div>
 
@@ -366,7 +351,7 @@ interface ColaInfo {
               <div class="service-top">
                 <span class="service-role">Administrador REST</span>
                 <span class="ping-pill" [class.ping-green]="adminOnline === true" [class.ping-red]="adminOnline === false">
-                  {{ adminOnline === true ? 'Puerto 8082 (Online)' : (adminOnline === false ? 'Puerto 8082 (Offline)' : 'Verificando...') }}
+                  {{ adminOnline === true ? 'En línea' : (adminOnline === false ? 'Desconectado' : 'Verificando...') }}
                 </span>
               </div>
               <h3 class="service-name">ms-rabbit-admin</h3>
@@ -375,7 +360,6 @@ interface ColaInfo {
           </div>
         </section>
 
-        <!-- Panel Interactivo de Administración de Colas -->
         <section class="card rabbit-admin-card">
           <div class="card-header-styled">
             <div class="icon-bubble bubble-orange">
@@ -386,18 +370,16 @@ interface ColaInfo {
               </svg>
             </div>
             <div>
-              <h2 class="card-title">Administrador Dinámico RabbitMQ (Indicadores 6, 7 y 8)</h2>
+              <h2 class="card-title">Administrador Dinámico de RabbitMQ</h2>
               <p class="card-desc">Crea o elimina colas en caliente y visualiza de inmediato los cambios en la tabla.</p>
             </div>
           </div>
 
-          <!-- Notificación en la misma pestaña -->
           <div *ngIf="mensajeAdminDirecto" class="admin-toast-banner" [class.toast-success]="tipoAdminDirecto === 'success'" [class.toast-error]="tipoAdminDirecto === 'error'">
             <span>{{ mensajeAdminDirecto }}</span>
             <button class="toast-close" (click)="mensajeAdminDirecto = ''">&times;</button>
           </div>
 
-          <!-- Alerta de conexión si ms-rabbit-admin está apagado -->
           <div *ngIf="adminOnline === false" class="admin-offline-alert">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="12" cy="12" r="10"></circle>
@@ -405,8 +387,8 @@ interface ColaInfo {
               <line x1="12" y1="16" x2="12.01" y2="16"></line>
             </svg>
             <div>
-              <strong>Microservicio 'ms-rabbit-admin' no detectado en el puerto 8082.</strong>
-              <p style="margin: 2px 0 0 0; font-size: 12px;">Para que los botones respondan, abre una terminal en <code>ms-rabbit-admin</code> y ejecuta <code>.\\mvnw.cmd spring-boot:run</code>.</p>
+              <strong>Microservicio 'ms-rabbit-admin' no detectado.</strong>
+              <p style="margin: 2px 0 0 0; font-size: 12px;">Para que las operaciones respondan, asegúrate de iniciar el microservicio en su terminal.</p>
             </div>
           </div>
 
@@ -441,12 +423,11 @@ interface ColaInfo {
                   <line x1="12" y1="9" x2="12" y2="13"></line>
                   <line x1="12" y1="17" x2="12.01" y2="17"></line>
                 </svg>
-                Probar Rechazo DTO Inválido (Indicador 8)
+                Probar Rechazo DTO Inválido (Validación 400)
               </button>
             </div>
           </div>
 
-          <!-- TABLA EN VIVO DE COLAS DECLARADAS (Confirmación Visual Inmediata) -->
           <div class="live-queues-box">
             <div class="live-queues-header">
               <div class="live-queues-title">
@@ -507,22 +488,18 @@ interface ColaInfo {
             </div>
           </div>
 
-          <!-- Consola Visual de Respuesta JSON -->
           <div *ngIf="ultimaRespuestaAdmin" class="console-box" style="margin-top: 20px;">
             <div class="console-header">
               <div class="console-dots">
                 <span class="dot-red"></span><span class="dot-yellow"></span><span class="dot-green"></span>
               </div>
-              <span class="console-title">Respuesta HTTP devuelta por ms-rabbit-admin (Puerto 8082):</span>
+              <span class="console-title">Respuesta HTTP devuelta por ms-rabbit-admin:</span>
             </div>
             <pre class="console-body">{{ ultimaRespuestaAdmin | json }}</pre>
           </div>
         </section>
       </div>
 
-      <!-- ============================================================== -->
-      <!-- PESTAÑA 3: SEGURIDAD & CLAIMS AZURE AD                         -->
-      <!-- ============================================================== -->
       <div *ngIf="activeTab === 'seguridad'" class="tab-content fade-in">
         <section class="card profile-card-styled">
           <div class="card-header-styled">
@@ -556,7 +533,6 @@ interface ColaInfo {
             </div>
           </div>
 
-          <!-- Roles y Scopes -->
           <div class="roles-box">
             <h3 class="roles-title">Roles y Scopes Activos en el Token:</h3>
             <div class="tags-row">
@@ -575,7 +551,6 @@ interface ColaInfo {
             </div>
           </div>
 
-          <!-- Prueba de Endpoint con Rol Admin -->
           <div class="security-test-bar">
             <div>
               <strong>Prueba de Autorización Estricta (RBAC):</strong>
@@ -596,36 +571,28 @@ export class PedidosComponent implements OnInit {
   scopes: string[] = [];
   pedidos: Pedido[] = [];
 
-  // Pestaña activa
   activeTab: 'pedidos' | 'rabbitmq' | 'seguridad' = 'pedidos';
 
-  // Mensajería y alertas globales
   mensajeEstado = '';
   tipoMensaje: 'success' | 'error' = 'success';
   loadingPedido = false;
   loadingAdmin = false;
 
-  // Notificaciones directas en pestaña RabbitMQ
   mensajeAdminDirecto = '';
   tipoAdminDirecto: 'success' | 'error' = 'success';
 
-  // Estado del microservicio administrador y lista de colas
   adminOnline: boolean | null = null;
   colasRabbit: ColaInfo[] = [];
 
-  // Variables de configuración de endpoints
   apiBaseUrl = environment.apiBaseUrl;
   rabbitAdminApiUrl = environment.rabbitAdminApiUrl || 'http://localhost:8082';
 
-  // Formulario nuevo pedido
   nuevoCliente = 'Sebastián Gallardo';
   nuevoProducto = 'Suscripción Cloud Native Pro';
   nuevoMonto: number | null = 45000;
 
-  // Búsqueda en tabla
   filtroTexto = '';
 
-  // Consola y gestión RabbitMQ
   nombreNuevaCola = 'cola.auditoria.demo';
   ultimaRespuestaAdmin: any = null;
 
@@ -765,7 +732,6 @@ export class PedidosComponent implements OnInit {
           this.loadingPedido = false;
           this.tipoMensaje = 'success';
           this.mensajeEstado = `¡Pedido #${res.id} creado en BD y publicado asíncronamente en pedidos.exchange!`;
-          // Inserción inmediata para respuesta reactiva sin retrasos visuales
           this.pedidos = [res, ...this.pedidos];
           this.nuevoCliente = '';
           this.nuevoProducto = '';
@@ -878,14 +844,14 @@ export class PedidosComponent implements OnInit {
         this.ngZone.run(() => {
           this.loadingAdmin = false;
           const msg = err.status === 0
-            ? 'No se pudo conectar a ms-rabbit-admin en puerto 8082. Asegúrate de iniciarlo con .\\mvnw.cmd spring-boot:run.'
+            ? 'No se pudo conectar al microservicio ms-rabbit-admin. Asegúrate de iniciarlo con .\\mvnw.cmd spring-boot:run.'
             : (err.error?.mensaje || err.error?.error || err.message);
 
           this.adminOnline = err.status !== 0;
           this.ultimaRespuestaAdmin = {
             codigoHttp: err.status || 0,
             error: msg,
-            detalles: err.error?.detalles || 'Verifica que ms-rabbit-admin esté corriendo en el puerto 8082.'
+            detalles: err.error?.detalles || 'Verifica que ms-rabbit-admin esté en ejecución.'
           };
           this.mostrarAlertaAdmin(`Fallo al crear cola: ${msg}`, 'error');
           this.cdr.detectChanges();
@@ -911,7 +877,6 @@ export class PedidosComponent implements OnInit {
           this.adminOnline = true;
           this.ultimaRespuestaAdmin = res;
           this.mostrarAlertaAdmin(`¡Cola '${nombre}' eliminada exitosamente de RabbitMQ!`, 'success');
-          // Actualización inmediata de la lista de colas
           this.colasRabbit = this.colasRabbit.filter((q) => q.nombre !== nombre);
           this.cdr.detectChanges();
         });
@@ -920,7 +885,7 @@ export class PedidosComponent implements OnInit {
         this.ngZone.run(() => {
           this.loadingAdmin = false;
           const msg = err.status === 0
-            ? 'No se pudo conectar a ms-rabbit-admin en puerto 8082.'
+            ? 'No se pudo conectar al microservicio ms-rabbit-admin.'
             : (err.error?.mensaje || err.message);
 
           this.adminOnline = err.status !== 0;
@@ -959,14 +924,14 @@ export class PedidosComponent implements OnInit {
             this.adminOnline = false;
             this.ultimaRespuestaAdmin = {
               codigoHttp: 0,
-              error: 'ms-rabbit-admin desconectado en puerto 8082.'
+              error: 'ms-rabbit-admin desconectado.'
             };
-            this.mostrarAlertaAdmin('ms-rabbit-admin no está respondiendo en el puerto 8082.', 'error');
+            this.mostrarAlertaAdmin('ms-rabbit-admin no está respondiendo.', 'error');
           } else {
             this.adminOnline = true;
             this.ultimaRespuestaAdmin = err.error || err;
             const errorMsg = err.error?.detalles?.name || err.error?.mensaje || 'Validación rechazada.';
-            this.mostrarAlertaAdmin(`[Indicador 8 - HTTP 400 Bad Request]: Rechazo exitoso -> "${errorMsg}"`, 'success');
+            this.mostrarAlertaAdmin(`[HTTP 400 Bad Request]: Rechazo exitoso -> "${errorMsg}"`, 'success');
           }
           this.cdr.detectChanges();
         });
