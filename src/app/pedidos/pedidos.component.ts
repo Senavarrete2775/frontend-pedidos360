@@ -69,7 +69,7 @@ interface Pedido {
               </svg>
             </div>
             <div class="kpi-details">
-              <span class="kpi-label">Facturado en BD</span>
+              <span class="kpi-label">Facturado Válido</span>
               <span class="kpi-value">\${{ calcularTotalFacturado() | number }}</span>
             </div>
           </div>
@@ -116,7 +116,7 @@ interface Pedido {
           </svg>
         </div>
         <div class="banner-content">
-          <strong>{{ tipoMensaje === 'error' ? 'Aviso de Sistema:' : 'Operación Exitosa:' }}</strong>
+          <strong>{{ tipoMensaje === 'error' ? 'Aviso del Sistema:' : 'Operación Exitosa:' }}</strong>
           <span>{{ mensajeEstado }}</span>
         </div>
         <button class="banner-close" (click)="mensajeEstado = ''">&times;</button>
@@ -132,13 +132,14 @@ interface Pedido {
           Gestión de Pedidos & Productor
         </button>
 
-        <button class="tab-btn" [class.tab-active]="activeTab === 'rabbitmq'" (click)="activeTab = 'rabbitmq'">
+        <button class="tab-btn" [class.tab-active]="activeTab === 'rabbitmq'" (click)="cambiarTabRabbitmq()">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M4 11a9 9 0 0 1 9 9"></path>
             <path d="M4 4a16 16 0 0 1 16 16"></path>
             <circle cx="5" cy="19" r="1"></circle>
           </svg>
           Consola RabbitMQ & Admin (8082)
+          <span class="status-dot-mini" [class.dot-online]="adminOnline === true" [class.dot-offline]="adminOnline === false"></span>
         </button>
 
         <button class="tab-btn" [class.tab-active]="activeTab === 'seguridad'" (click)="activeTab = 'seguridad'">
@@ -173,10 +174,10 @@ interface Pedido {
           <div class="quick-presets">
             <span class="preset-label">Plantillas para defensa docente:</span>
             <button type="button" class="preset-chip chip-success" (click)="cargarPresetValido()">
-              ✨ Pedido Válido (Prueba ACK Manual)
+              ✨ Cargar Pedido Válido (Flujo Exitoso)
             </button>
-            <button type="button" class="preset-chip chip-warning" (click)="cargarPresetInvalido()">
-              ⚠️ Pedido Monto $0 (Prueba Desvío a DLQ)
+            <button type="button" class="preset-chip chip-warning" (click)="simularFalloDLQDirecto()">
+              ⚡ Simular Fallo Asíncrono (Demostración DLQ)
             </button>
           </div>
 
@@ -205,10 +206,10 @@ interface Pedido {
               </div>
 
               <div class="input-group">
-                <label class="input-label">Monto (CLP)</label>
+                <label class="input-label">Monto (CLP > 0)</label>
                 <div class="input-wrapper">
                   <span class="currency-prefix">$</span>
-                  <input type="number" [(ngModel)]="nuevoMonto" name="nuevoMonto" required placeholder="Monto" class="styled-input pl-currency" />
+                  <input type="number" min="1" [(ngModel)]="nuevoMonto" name="nuevoMonto" required placeholder="Monto mayor a 0" class="styled-input pl-currency" />
                 </div>
               </div>
             </div>
@@ -218,7 +219,7 @@ interface Pedido {
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
                 </svg>
-                <span>{{ loadingPedido ? 'Procesando en RabbitMQ...' : 'Crear Pedido & Emitir Evento AMQP' }}</span>
+                <span>{{ loadingPedido ? 'Registrando...' : 'Crear Pedido & Emitir Evento AMQP' }}</span>
               </button>
             </div>
           </form>
@@ -262,6 +263,7 @@ interface Pedido {
                   <th>Monto</th>
                   <th>Estado</th>
                   <th>Fecha de Registro</th>
+                  <th style="text-align: right;">Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -277,7 +279,7 @@ interface Pedido {
                   </td>
                   <td>{{ p.producto }}</td>
                   <td>
-                    <span class="cell-amount">\${{ p.monto | number }}</span>
+                    <span class="cell-amount" [class.text-danger]="p.monto <= 0">\${{ p.monto | number }}</span>
                   </td>
                   <td>
                     <span class="badge-status" [class]="'badge-' + p.estado.toLowerCase()">
@@ -288,10 +290,18 @@ interface Pedido {
                   <td class="cell-date">
                     {{ p.fecha | date:'dd/MM/yyyy &bull; HH:mm' }}
                   </td>
+                  <td style="text-align: right;">
+                    <button class="btn-delete-row" (click)="eliminarPedido(p.id)" title="Eliminar pedido de la base de datos">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                      </svg>
+                    </button>
+                  </td>
                 </tr>
 
                 <tr *ngIf="pedidosFiltrados().length === 0">
-                  <td colspan="6" class="empty-table-state">
+                  <td colspan="7" class="empty-table-state">
                     <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
                       <circle cx="12" cy="12" r="10"></circle>
                       <path d="M8 12h8"></path>
@@ -345,10 +355,12 @@ interface Pedido {
               <p class="service-desc">Consumo @RabbitListener, ACK manual explícito y desvío a DLQ.</p>
             </div>
 
-            <div class="service-chip-card">
+            <div class="service-chip-card" [class.border-warning]="adminOnline === false">
               <div class="service-top">
                 <span class="service-role">Administrador REST</span>
-                <span class="ping-pill ping-green">Puerto 8082</span>
+                <span class="ping-pill" [class.ping-green]="adminOnline === true" [class.ping-red]="adminOnline === false">
+                  {{ adminOnline === true ? 'Puerto 8082 (Online)' : (adminOnline === false ? 'Puerto 8082 (Offline)' : 'Verificando...') }}
+                </span>
               </div>
               <h3 class="service-name">ms-rabbit-admin</h3>
               <p class="service-desc">Servicio RabbitAdminService con endpoints para colas, exchanges y validaciones DTO.</p>
@@ -372,6 +384,19 @@ interface Pedido {
             </div>
           </div>
 
+          <!-- Alerta de conexión si ms-rabbit-admin está apagado -->
+          <div *ngIf="adminOnline === false" class="admin-offline-alert">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            <div>
+              <strong>Microservicio 'ms-rabbit-admin' no detectado en el puerto 8082.</strong>
+              <p style="margin: 2px 0 0 0; font-size: 12px;">Para que los botones de esta pestaña respondan, abre una terminal en <code>ms-rabbit-admin</code> y ejecuta <code>.\\mvnw.cmd spring-boot:run</code>.</p>
+            </div>
+          </div>
+
           <div class="admin-actions-box">
             <div class="input-group flex-1">
               <label class="input-label">Nombre de la Cola a Administrar</label>
@@ -381,7 +406,7 @@ interface Pedido {
             </div>
 
             <div class="admin-btn-row">
-              <button class="btn-admin btn-post" (click)="crearColaAdmin()">
+              <button class="btn-admin btn-post" [disabled]="loadingAdmin" (click)="crearColaAdmin()">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <line x1="12" y1="5" x2="12" y2="19"></line>
                   <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -389,7 +414,7 @@ interface Pedido {
                 POST /queues (Crear)
               </button>
 
-              <button class="btn-admin btn-delete" (click)="eliminarColaAdmin()">
+              <button class="btn-admin btn-delete" [disabled]="loadingAdmin" (click)="eliminarColaAdmin()">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <polyline points="3 6 5 6 21 6"></polyline>
                   <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -397,13 +422,21 @@ interface Pedido {
                 DELETE /queues (Eliminar)
               </button>
 
-              <button class="btn-admin btn-test" (click)="probarValidacionVacia()">
+              <button class="btn-admin btn-test" [disabled]="loadingAdmin" (click)="probarValidacionVacia()">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
                   <line x1="12" y1="9" x2="12" y2="13"></line>
                   <line x1="12" y1="17" x2="12.01" y2="17"></line>
                 </svg>
                 Probar Rechazo DTO Inválido (Indicador 8)
+              </button>
+
+              <button class="btn-admin btn-check" (click)="verificarSaludAdmin()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                  <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
+                Verificar Conexión
               </button>
             </div>
           </div>
@@ -504,6 +537,10 @@ export class PedidosComponent implements OnInit {
   mensajeEstado = '';
   tipoMensaje: 'success' | 'error' = 'success';
   loadingPedido = false;
+  loadingAdmin = false;
+
+  // Estado del microservicio administrador
+  adminOnline: boolean | null = null;
 
   // Variables de configuración de endpoints
   apiBaseUrl = environment.apiBaseUrl;
@@ -529,6 +566,7 @@ export class PedidosComponent implements OnInit {
   ngOnInit(): void {
     this.cargarDatosSesion();
     this.cargarPedidos();
+    this.verificarSaludAdmin();
   }
 
   cargarDatosSesion(): void {
@@ -562,7 +600,9 @@ export class PedidosComponent implements OnInit {
   }
 
   calcularTotalFacturado(): number {
-    return this.pedidos.reduce((acc, p) => acc + (p.monto || 0), 0);
+    return this.pedidos
+      .filter((p) => (p.monto || 0) > 0)
+      .reduce((acc, p) => acc + (p.monto || 0), 0);
   }
 
   pedidosFiltrados(): Pedido[] {
@@ -584,10 +624,17 @@ export class PedidosComponent implements OnInit {
     this.nuevoMonto = 45000;
   }
 
-  cargarPresetInvalido(): void {
-    this.nuevoCliente = 'Cliente Prueba Error DLQ';
-    this.nuevoProducto = 'Plan Fallo Intencional';
-    this.nuevoMonto = 0;
+  simularFalloDLQDirecto(): void {
+    this.http.post<any>(`${environment.apiBaseUrl}/api/pedidos/simular-error-dlq`, {}).subscribe({
+      next: (res) => {
+        this.tipoMensaje = 'success';
+        this.mensajeEstado = res.mensaje;
+      },
+      error: (err) => {
+        this.tipoMensaje = 'error';
+        this.mensajeEstado = err.error?.message || err.message || 'Error al emitir evento de fallo a RabbitMQ.';
+      }
+    });
   }
 
   cargarPedidos(): void {
@@ -595,7 +642,6 @@ export class PedidosComponent implements OnInit {
       next: (res) => {
         this.pedidos = res.pedidos || [];
         this.tipoMensaje = 'success';
-        this.mensajeEstado = `${res.mensaje} (${this.pedidos.length} pedidos en Base de Datos).`;
       },
       error: (err) => {
         this.tipoMensaje = 'error';
@@ -605,16 +651,22 @@ export class PedidosComponent implements OnInit {
   }
 
   crearPedido(): void {
-    if (!this.nuevoCliente || !this.nuevoProducto || this.nuevoMonto === null) {
+    if (!this.nuevoCliente?.trim() || !this.nuevoProducto?.trim()) {
       this.tipoMensaje = 'error';
-      this.mensajeEstado = 'Por favor complete cliente, producto y monto.';
+      this.mensajeEstado = 'Por favor complete cliente y producto.';
+      return;
+    }
+
+    if (this.nuevoMonto === null || this.nuevoMonto <= 0) {
+      this.tipoMensaje = 'error';
+      this.mensajeEstado = 'El monto del pedido debe ser un valor positivo mayor a 0.';
       return;
     }
 
     this.loadingPedido = true;
     const payload = {
-      cliente: this.nuevoCliente,
-      producto: this.nuevoProducto,
+      cliente: this.nuevoCliente.trim(),
+      producto: this.nuevoProducto.trim(),
       monto: Number(this.nuevoMonto),
       estado: 'PENDIENTE'
     };
@@ -629,7 +681,37 @@ export class PedidosComponent implements OnInit {
       error: (err) => {
         this.loadingPedido = false;
         this.tipoMensaje = 'error';
-        this.mensajeEstado = `Error al registrar pedido: ${err.error?.message || err.statusText}`;
+        this.mensajeEstado = err.error?.message || err.error?.error || `Error al registrar pedido: ${err.statusText}`;
+      }
+    });
+  }
+
+  eliminarPedido(id: number): void {
+    this.http.delete<any>(`${environment.apiBaseUrl}/api/pedidos/${id}`).subscribe({
+      next: (res) => {
+        this.tipoMensaje = 'success';
+        this.mensajeEstado = res.mensaje || `Pedido #${id} eliminado con éxito.`;
+        this.cargarPedidos();
+      },
+      error: (err) => {
+        this.tipoMensaje = 'error';
+        this.mensajeEstado = err.error?.message || `No se pudo eliminar el pedido #${id}.`;
+      }
+    });
+  }
+
+  cambiarTabRabbitmq(): void {
+    this.activeTab = 'rabbitmq';
+    this.verificarSaludAdmin();
+  }
+
+  verificarSaludAdmin(): void {
+    this.http.get<any>(`${this.rabbitAdminApiUrl}/status`).subscribe({
+      next: (res) => {
+        this.adminOnline = true;
+      },
+      error: (err) => {
+        this.adminOnline = false;
       }
     });
   }
@@ -641,6 +723,7 @@ export class PedidosComponent implements OnInit {
       return;
     }
 
+    this.loadingAdmin = true;
     const body = {
       name: this.nombreNuevaCola.trim(),
       durable: true,
@@ -650,14 +733,25 @@ export class PedidosComponent implements OnInit {
 
     this.http.post<any>(`${this.rabbitAdminApiUrl}/queues`, body).subscribe({
       next: (res) => {
+        this.loadingAdmin = false;
+        this.adminOnline = true;
         this.ultimaRespuestaAdmin = res;
         this.tipoMensaje = 'success';
         this.mensajeEstado = `[ms-rabbit-admin: 201 Created] Cola '${res.nombre}' creada exitosamente en RabbitMQ.`;
       },
       error: (err) => {
-        this.ultimaRespuestaAdmin = err.error || err;
+        this.loadingAdmin = false;
+        const msg = err.status === 0
+          ? 'No se pudo conectar a ms-rabbit-admin en puerto 8082. Asegúrate de tener iniciado el microservicio con .\\mvnw.cmd spring-boot:run.'
+          : (err.error?.mensaje || err.error?.error || err.message);
+
+        this.adminOnline = err.status !== 0;
+        this.ultimaRespuestaAdmin = {
+          codigoHttp: err.status || 0,
+          error: msg,
+          detalles: err.error?.detalles || 'Verifica que ms-rabbit-admin esté corriendo en el puerto 8082.'
+        };
         this.tipoMensaje = 'error';
-        const msg = err.error?.mensaje || err.error?.error || err.message;
         this.mensajeEstado = `[ms-rabbit-admin: ${err.status}] Fallo al crear cola: ${msg}`;
       }
     });
@@ -670,22 +764,35 @@ export class PedidosComponent implements OnInit {
       return;
     }
 
+    this.loadingAdmin = true;
     this.http.delete<any>(`${this.rabbitAdminApiUrl}/queues/${this.nombreNuevaCola.trim()}`).subscribe({
       next: (res) => {
+        this.loadingAdmin = false;
+        this.adminOnline = true;
         this.ultimaRespuestaAdmin = res;
         this.tipoMensaje = 'success';
         this.mensajeEstado = `[ms-rabbit-admin: 200 OK] ${res.mensaje}`;
       },
       error: (err) => {
-        this.ultimaRespuestaAdmin = err.error || err;
+        this.loadingAdmin = false;
+        const msg = err.status === 0
+          ? 'No se pudo conectar a ms-rabbit-admin en puerto 8082. ¿Está iniciado?'
+          : (err.error?.mensaje || err.message);
+
+        this.adminOnline = err.status !== 0;
+        this.ultimaRespuestaAdmin = {
+          codigoHttp: err.status || 0,
+          error: msg,
+          detalles: 'Verifica la consola de ms-rabbit-admin.'
+        };
         this.tipoMensaje = 'error';
-        const msg = err.error?.mensaje || err.message;
         this.mensajeEstado = `[ms-rabbit-admin: ${err.status}] ${msg}`;
       }
     });
   }
 
   probarValidacionVacia(): void {
+    this.loadingAdmin = true;
     const bodyInvalido = {
       name: '',
       durable: true
@@ -693,12 +800,28 @@ export class PedidosComponent implements OnInit {
 
     this.http.post<any>(`${this.rabbitAdminApiUrl}/queues`, bodyInvalido).subscribe({
       next: (res) => {
+        this.loadingAdmin = false;
+        this.adminOnline = true;
         this.ultimaRespuestaAdmin = res;
         this.tipoMensaje = 'success';
         this.mensajeEstado = 'Respuesta inesperada: se esperaba error de validación.';
       },
       error: (err) => {
-        this.ultimaRespuestaAdmin = err.error;
+        this.loadingAdmin = false;
+        if (err.status === 0) {
+          this.adminOnline = false;
+          this.ultimaRespuestaAdmin = {
+            codigoHttp: 0,
+            error: 'No se pudo conectar a ms-rabbit-admin en el puerto 8082.',
+            sugerencia: 'Asegúrate de ejecutar .\\mvnw.cmd spring-boot:run en la carpeta ms-rabbit-admin.'
+          };
+          this.tipoMensaje = 'error';
+          this.mensajeEstado = 'ms-rabbit-admin no está respondiendo en el puerto 8082.';
+          return;
+        }
+
+        this.adminOnline = true;
+        this.ultimaRespuestaAdmin = err.error || err;
         this.tipoMensaje = 'error';
         this.mensajeEstado = `[Demostración Indicador 8 - HTTP 400 Bad Request]: Se rechazó el nombre vacío con el mensaje: "${err.error?.detalles?.name || err.error?.mensaje}"`;
       }

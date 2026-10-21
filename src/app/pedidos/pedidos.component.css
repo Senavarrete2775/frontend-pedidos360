@@ -781,3 +781,75 @@
 
 .text-mono { font-family: monospace; }
 .mb-20 { margin-bottom: 20px; }
+
+/* Acciones en la tabla de pedidos */
+.btn-delete-row {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-delete-row:hover {
+  background: #fee2e2;
+  color: #ef4444;
+}
+.text-danger {
+  color: #ef4444 !important;
+}
+
+/* Indicador de estado en pestaña */
+.status-dot-mini {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-left: 4px;
+}
+.dot-online {
+  background: #22c55e;
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.6);
+}
+.dot-offline {
+  background: #ef4444;
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.6);
+}
+
+/* Alerta de conexión ms-rabbit-admin */
+.admin-offline-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  color: #9f1239;
+  padding: 14px 16px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  line-height: 1.4;
+}
+.admin-offline-alert svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.ping-red {
+  background: #fee2e2;
+  color: #991b1b;
+}
+.border-warning {
+  border-color: #fca5a5 !important;
+}
+
+.btn-check {
+  background: #f1f5f9;
+  color: #475569;
+}
+.btn-check:hover {
+  background: #e2e8f0;
+}
