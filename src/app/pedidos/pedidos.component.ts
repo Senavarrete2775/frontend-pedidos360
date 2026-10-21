@@ -6,392 +6,520 @@ import { MsalService } from '@azure/msal-angular';
 import { AccountInfo } from '@azure/msal-browser';
 import { environment } from '../../environments/environment';
 
+interface Pedido {
+  id: number;
+  cliente: string;
+  producto: string;
+  monto: number;
+  estado: string;
+  fecha: string;
+}
+
 @Component({
   selector: 'app-pedidos',
   standalone: true,
   imports: [CommonModule, FormsModule],
+  styleUrl: './pedidos.component.css',
   template: `
-    <div class="pedidos-container">
-      <!-- Ficha de Usuario y Claims de Token -->
-      <div class="card profile-card">
-        <div class="card-header">
-          <div>
-            <h2 class="section-title">Perfil de Sesión y Claims IDaaS (Azure AD)</h2>
-            <p class="section-subtitle">Información leída directamente desde los claims del token JWT</p>
-          </div>
-          <span class="status-badge">Autenticado vía MSAL</span>
-        </div>
-
-        <div class="claims-grid">
-          <div class="claim-item">
-            <span class="claim-label">Usuario</span>
-            <span class="claim-value">{{ account?.name || account?.username || 'No disponible' }}</span>
-          </div>
-          <div class="claim-item">
-            <span class="claim-label">Correo / UPN</span>
-            <span class="claim-value">{{ account?.username || 'No disponible' }}</span>
-          </div>
-          <div class="claim-item">
-            <span class="claim-label">Tenant ID</span>
-            <span class="claim-value text-mono">{{ account?.tenantId }}</span>
-          </div>
-          <div class="claim-item">
-            <span class="claim-label">Entorno API Base</span>
-            <span class="claim-value text-mono">{{ apiBaseUrl }}</span>
-          </div>
-        </div>
-
-        <!-- Sección de Roles y Scopes (Requisito Clave de la Pauta) -->
-        <div class="roles-section">
-          <h4>Roles y Scopes Detectados en Token:</h4>
-          <div class="tags-container">
-            <div *ngIf="roles.length > 0; else noRoles">
-              <span *ngFor="let rol of roles" class="tag tag-role">Rol: {{ rol }}</span>
+    <div class="dashboard-wrapper">
+      <!-- 1. Encabezado del Dashboard -->
+      <header class="dashboard-header">
+        <div class="header-content">
+          <div class="header-titles">
+            <div class="header-badge">
+              <span class="badge-dot"></span> Cloud Native III &bull; RabbitMQ Microservices
             </div>
-            <ng-template #noRoles>
-              <span class="tag tag-neutral">Sin rol específico (Usuario Estándar / Authenticated)</span>
-            </ng-template>
-
-            <span *ngFor="let scope of scopes" class="tag tag-scope">Scope: {{ scope }}</span>
+            <h1 class="header-title">Panel de Control & Mensajería Pedidos360</h1>
+            <p class="header-subtitle">
+              Gestión desacoplada de pedidos asíncronos con confirmación ACK manual, Dead Letter Queue (DLQ) y administración dinámica.
+            </p>
+          </div>
+          <div class="header-user-card" *ngIf="account">
+            <div class="user-avatar">{{ getInitials(account.name || account.username) }}</div>
+            <div class="user-info">
+              <span class="user-name">{{ account.name || account.username }}</span>
+              <span class="user-badge" [class.badge-admin]="esAdmin()">
+                {{ esAdmin() ? 'Rol Administrador' : 'Usuario Estándar' }}
+              </span>
+            </div>
           </div>
         </div>
+
+        <!-- KPI Stats Grid -->
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-icon icon-orders">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <path d="M16 10a4 4 0 0 1-8 0"></path>
+              </svg>
+            </div>
+            <div class="kpi-details">
+              <span class="kpi-label">Total Pedidos</span>
+              <span class="kpi-value">{{ pedidos.length }}</span>
+            </div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-icon icon-money">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="1" x2="12" y2="23"></line>
+                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+              </svg>
+            </div>
+            <div class="kpi-details">
+              <span class="kpi-label">Facturado en BD</span>
+              <span class="kpi-value">\${{ calcularTotalFacturado() | number }}</span>
+            </div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-icon icon-amqp">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+              </svg>
+            </div>
+            <div class="kpi-details">
+              <span class="kpi-label">Exchange RabbitMQ</span>
+              <span class="kpi-value text-mono">pedidos.exchange</span>
+            </div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-icon icon-services">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+                <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+                <line x1="6" y1="6" x2="6.01" y2="6"></line>
+                <line x1="6" y1="18" x2="6.01" y2="18"></line>
+              </svg>
+            </div>
+            <div class="kpi-details">
+              <span class="kpi-label">Microservicios</span>
+              <span class="kpi-value font-emerald">3 Activos</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Banner de Alertas / Notificaciones Dinámicas -->
+      <div *ngIf="mensajeEstado" class="notification-banner" [class.banner-error]="tipoMensaje === 'error'" [class.banner-success]="tipoMensaje === 'success'">
+        <div class="banner-icon">
+          <svg *ngIf="tipoMensaje === 'success'" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+          <svg *ngIf="tipoMensaje === 'error'" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+        </div>
+        <div class="banner-content">
+          <strong>{{ tipoMensaje === 'error' ? 'Aviso de Sistema:' : 'Operación Exitosa:' }}</strong>
+          <span>{{ mensajeEstado }}</span>
+        </div>
+        <button class="banner-close" (click)="mensajeEstado = ''">&times;</button>
       </div>
 
-      <!-- Acciones de Consumo al Backend -->
-      <div class="card actions-card">
-        <h3 class="subsection-title">Operaciones contra Backend / BFF</h3>
-        <p class="section-subtitle">
-          Las peticiones viajan con el encabezado <code>Authorization: Bearer &lt;token&gt;</code> gestionado por <strong>MsalInterceptor</strong>.
-        </p>
+      <!-- 2. Pestañas de Navegación Segmentada -->
+      <nav class="tabs-nav">
+        <button class="tab-btn" [class.tab-active]="activeTab === 'pedidos'" (click)="activeTab = 'pedidos'">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+          </svg>
+          Gestión de Pedidos & Productor
+        </button>
 
-        <div class="btn-group">
-          <button class="btn btn-primary" (click)="cargarPedidos()">
-            Consultar Pedidos (Base de Datos)
-          </button>
-          <button class="btn btn-warning" (click)="consultarAdmin()">
-            Probar Endpoint con Rol Admin (/api/pedidos/admin)
-          </button>
-        </div>
+        <button class="tab-btn" [class.tab-active]="activeTab === 'rabbitmq'" (click)="activeTab = 'rabbitmq'">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 11a9 9 0 0 1 9 9"></path>
+            <path d="M4 4a16 16 0 0 1 16 16"></path>
+            <circle cx="5" cy="19" r="1"></circle>
+          </svg>
+          Consola RabbitMQ & Admin (8082)
+        </button>
 
-        <!-- Formulario para Crear Pedido y Publicar a RabbitMQ -->
-        <div class="form-container" style="margin-top: 20px; padding: 16px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
-          <h4 style="margin: 0 0 10px 0; color: #1e293b;">Registrar Nuevo Pedido (Productor RabbitMQ)</h4>
-          <p style="font-size: 13px; color: #64748b; margin-bottom: 12px;">
-            Al crear un pedido, el backend lo persiste en la BD y emite automáticamente un evento asíncrono a <strong>pedidos.exchange</strong>.
-          </p>
-          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-            <input type="text" [(ngModel)]="nuevoCliente" placeholder="Nombre Cliente" style="padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; flex: 1; min-width: 150px;" />
-            <input type="text" [(ngModel)]="nuevoProducto" placeholder="Producto / Servicio" style="padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; flex: 1; min-width: 150px;" />
-            <input type="number" [(ngModel)]="nuevoMonto" placeholder="Monto (CLP)" style="padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; width: 130px;" />
-            <button class="btn btn-success" (click)="crearPedido()">
-              Crear y Enviar a RabbitMQ
+        <button class="tab-btn" [class.tab-active]="activeTab === 'seguridad'" (click)="activeTab = 'seguridad'">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+          Seguridad IDaaS (Azure AD JWT)
+        </button>
+      </nav>
+
+      <!-- ============================================================== -->
+      <!-- PESTAÑA 1: GESTIÓN DE PEDIDOS & PRODUCTOR AMQP                  -->
+      <!-- ============================================================== -->
+      <div *ngIf="activeTab === 'pedidos'" class="tab-content fade-in">
+        <!-- Formulario Moderno para Crear Pedido -->
+        <section class="card form-card">
+          <div class="card-header-styled">
+            <div class="icon-bubble bubble-emerald">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </div>
+            <div>
+              <h2 class="card-title">Registrar Nuevo Pedido (Productor RabbitMQ)</h2>
+              <p class="card-desc">Guarda el pedido en base de datos y publica un evento asíncrono a la cola de RabbitMQ.</p>
+            </div>
+          </div>
+
+          <!-- Botones de Acceso Rápido para Demostraciones -->
+          <div class="quick-presets">
+            <span class="preset-label">Plantillas para defensa docente:</span>
+            <button type="button" class="preset-chip chip-success" (click)="cargarPresetValido()">
+              ✨ Pedido Válido (Prueba ACK Manual)
+            </button>
+            <button type="button" class="preset-chip chip-warning" (click)="cargarPresetInvalido()">
+              ⚠️ Pedido Monto $0 (Prueba Desvío a DLQ)
             </button>
           </div>
-        </div>
 
-        <!-- Panel de Administración RabbitMQ (ms-rabbit-admin) -->
-        <div class="form-container" style="margin-top: 20px; padding: 16px; background: #fdf4ff; border-radius: 8px; border: 1px solid #f0abfc;">
-          <h4 style="margin: 0 0 10px 0; color: #86198f;">Panel Administrador de RabbitMQ (ms-rabbit-admin:8082)</h4>
-          <p style="font-size: 13px; color: #701a75; margin-bottom: 12px;">
-            Prueba de Endpoints REST (POST /queues, DELETE /queues/&#123;name&#125;) y validaciones DTO (Indicadores 6, 7 y 8).
-          </p>
-          <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
-            <input type="text" [(ngModel)]="nombreNuevaCola" placeholder="Nombre Cola (ej. cola.demo)" style="padding: 8px 12px; border-radius: 6px; border: 1px solid #e879f9; flex: 1; min-width: 180px;" />
-            <button class="btn btn-primary" (click)="crearColaAdmin()">
-              POST /queues (Crear)
-            </button>
-            <button class="btn btn-danger" (click)="eliminarColaAdmin()">
-              DELETE /queues (Eliminar)
-            </button>
-            <button class="btn btn-neutral" (click)="consultarEstadoServicios()">
-              Verificar Estado Microservicios
+          <form (ngSubmit)="crearPedido()" class="order-form">
+            <div class="form-row">
+              <div class="input-group">
+                <label class="input-label">Cliente</label>
+                <div class="input-wrapper">
+                  <svg class="field-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                  </svg>
+                  <input type="text" [(ngModel)]="nuevoCliente" name="nuevoCliente" required placeholder="Nombre del cliente" class="styled-input" />
+                </div>
+              </div>
+
+              <div class="input-group">
+                <label class="input-label">Producto / Servicio</label>
+                <div class="input-wrapper">
+                  <svg class="field-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+                  </svg>
+                  <input type="text" [(ngModel)]="nuevoProducto" name="nuevoProducto" required placeholder="Ej: Suscripción Cloud Pro" class="styled-input" />
+                </div>
+              </div>
+
+              <div class="input-group">
+                <label class="input-label">Monto (CLP)</label>
+                <div class="input-wrapper">
+                  <span class="currency-prefix">$</span>
+                  <input type="number" [(ngModel)]="nuevoMonto" name="nuevoMonto" required placeholder="Monto" class="styled-input pl-currency" />
+                </div>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button type="submit" class="btn-cta btn-cta-primary" [disabled]="loadingPedido">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                </svg>
+                <span>{{ loadingPedido ? 'Procesando en RabbitMQ...' : 'Crear Pedido & Emitir Evento AMQP' }}</span>
+              </button>
+            </div>
+          </form>
+        </section>
+
+        <!-- Tabla Estilizada de Pedidos -->
+        <section class="card table-card">
+          <div class="table-header-bar">
+            <div>
+              <h2 class="card-title">Listado de Pedidos Persistidos</h2>
+              <p class="card-desc">Sincronizados en tiempo real con la Base de Datos ({{ pedidosFiltrados().length }} pedidos)</p>
+            </div>
+
+            <div class="table-controls">
+              <div class="search-box">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <input type="text" [(ngModel)]="filtroTexto" placeholder="Buscar por cliente o producto..." class="search-input" />
+              </div>
+              <button class="btn-refresh" (click)="cargarPedidos()" title="Recargar pedidos">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="23 4 23 10 17 10"></polyline>
+                  <polyline points="1 20 1 14 7 14"></polyline>
+                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                </svg>
+                Actualizar
+              </button>
+            </div>
+          </div>
+
+          <!-- Tabla Responsive -->
+          <div class="table-responsive">
+            <table class="modern-table">
+              <thead>
+                <tr>
+                  <th>Folio</th>
+                  <th>Cliente</th>
+                  <th>Producto / Servicio</th>
+                  <th>Monto</th>
+                  <th>Estado</th>
+                  <th>Fecha de Registro</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let p of pedidosFiltrados()">
+                  <td>
+                    <span class="id-pill">#{{ p.id }}</span>
+                  </td>
+                  <td>
+                    <div class="cell-client">
+                      <div class="client-avatar">{{ getInitials(p.cliente) }}</div>
+                      <strong>{{ p.cliente }}</strong>
+                    </div>
+                  </td>
+                  <td>{{ p.producto }}</td>
+                  <td>
+                    <span class="cell-amount">\${{ p.monto | number }}</span>
+                  </td>
+                  <td>
+                    <span class="badge-status" [class]="'badge-' + p.estado.toLowerCase()">
+                      <span class="status-indicator"></span>
+                      {{ p.estado }}
+                    </span>
+                  </td>
+                  <td class="cell-date">
+                    {{ p.fecha | date:'dd/MM/yyyy &bull; HH:mm' }}
+                  </td>
+                </tr>
+
+                <tr *ngIf="pedidosFiltrados().length === 0">
+                  <td colspan="6" class="empty-table-state">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <path d="M8 12h8"></path>
+                    </svg>
+                    <p>No se encontraron pedidos registrados coincidentes.</p>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <!-- ============================================================== -->
+      <!-- PESTAÑA 2: CONSOLA RABBITMQ & ADMIN (8082)                     -->
+      <!-- ============================================================== -->
+      <div *ngIf="activeTab === 'rabbitmq'" class="tab-content fade-in">
+        <!-- Tarjeta de Salud de los Microservicios -->
+        <section class="card mb-20">
+          <div class="card-header-styled">
+            <div class="icon-bubble bubble-purple">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+                <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+                <line x1="6" y1="6" x2="6.01" y2="6"></line>
+                <line x1="6" y1="18" x2="6.01" y2="18"></line>
+              </svg>
+            </div>
+            <div>
+              <h2 class="card-title">Malla de Microservicios Cloud Native</h2>
+              <p class="card-desc">Estado y roles de cada microservicio en la topología de la Evaluación 3.</p>
+            </div>
+          </div>
+
+          <div class="services-grid">
+            <div class="service-chip-card">
+              <div class="service-top">
+                <span class="service-role">Core & Productor</span>
+                <span class="ping-pill ping-green">Puerto 8080</span>
+              </div>
+              <h3 class="service-name">backend-pedidos360</h3>
+              <p class="service-desc">Persistencia JPA, Autenticación Azure AD y emisor de eventos AMQP.</p>
+            </div>
+
+            <div class="service-chip-card">
+              <div class="service-top">
+                <span class="service-role">Consumidor Asíncrono</span>
+                <span class="ping-pill ping-green">Puerto 8081</span>
+              </div>
+              <h3 class="service-name">ms-notificaciones</h3>
+              <p class="service-desc">Consumo @RabbitListener, ACK manual explícito y desvío a DLQ.</p>
+            </div>
+
+            <div class="service-chip-card">
+              <div class="service-top">
+                <span class="service-role">Administrador REST</span>
+                <span class="ping-pill ping-green">Puerto 8082</span>
+              </div>
+              <h3 class="service-name">ms-rabbit-admin</h3>
+              <p class="service-desc">Servicio RabbitAdminService con endpoints para colas, exchanges y validaciones DTO.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Panel Interactivo de Administración de Colas -->
+        <section class="card rabbit-admin-card">
+          <div class="card-header-styled">
+            <div class="icon-bubble bubble-orange">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                <polyline points="2 17 12 22 22 17"></polyline>
+                <polyline points="2 12 12 17 22 12"></polyline>
+              </svg>
+            </div>
+            <div>
+              <h2 class="card-title">Administrador Dinámico RabbitMQ (Indicadores 6, 7 y 8)</h2>
+              <p class="card-desc">Creación y eliminación de colas vía endpoints REST con validación de nombres.</p>
+            </div>
+          </div>
+
+          <div class="admin-actions-box">
+            <div class="input-group flex-1">
+              <label class="input-label">Nombre de la Cola a Administrar</label>
+              <div class="input-wrapper">
+                <input type="text" [(ngModel)]="nombreNuevaCola" placeholder="ej: cola.auditoria.demo" class="styled-input text-mono" />
+              </div>
+            </div>
+
+            <div class="admin-btn-row">
+              <button class="btn-admin btn-post" (click)="crearColaAdmin()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                POST /queues (Crear)
+              </button>
+
+              <button class="btn-admin btn-delete" (click)="eliminarColaAdmin()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+                DELETE /queues (Eliminar)
+              </button>
+
+              <button class="btn-admin btn-test" (click)="probarValidacionVacia()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                  <line x1="12" y1="9" x2="12" y2="13"></line>
+                  <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                Probar Rechazo DTO Inválido (Indicador 8)
+              </button>
+            </div>
+          </div>
+
+          <!-- Consola Visual de Respuesta -->
+          <div *ngIf="ultimaRespuestaAdmin" class="console-box">
+            <div class="console-header">
+              <div class="console-dots">
+                <span class="dot-red"></span><span class="dot-yellow"></span><span class="dot-green"></span>
+              </div>
+              <span class="console-title">Respuesta HTTP devuelta por ms-rabbit-admin (Puerto 8082):</span>
+            </div>
+            <pre class="console-body">{{ ultimaRespuestaAdmin | json }}</pre>
+          </div>
+        </section>
+      </div>
+
+      <!-- ============================================================== -->
+      <!-- PESTAÑA 3: SEGURIDAD & CLAIMS AZURE AD                         -->
+      <!-- ============================================================== -->
+      <div *ngIf="activeTab === 'seguridad'" class="tab-content fade-in">
+        <section class="card profile-card-styled">
+          <div class="card-header-styled">
+            <div class="icon-bubble bubble-blue">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+              </svg>
+            </div>
+            <div>
+              <h2 class="card-title">Identidad Federada IDaaS (Azure Active Directory)</h2>
+              <p class="card-desc">Validación de tokens JWT en los filtros de seguridad de Spring Security.</p>
+            </div>
+          </div>
+
+          <div class="claims-summary-grid">
+            <div class="claim-card">
+              <span class="claim-label">Usuario Conectado</span>
+              <span class="claim-val">{{ account?.name || account?.username || 'No disponible' }}</span>
+            </div>
+            <div class="claim-card">
+              <span class="claim-label">UPN / Correo Institucional</span>
+              <span class="claim-val">{{ account?.username }}</span>
+            </div>
+            <div class="claim-card">
+              <span class="claim-label">Tenant ID (Directorio)</span>
+              <span class="claim-val text-mono">{{ account?.tenantId }}</span>
+            </div>
+            <div class="claim-card">
+              <span class="claim-label">Endpoint BFF</span>
+              <span class="claim-val text-mono">{{ apiBaseUrl }}</span>
+            </div>
+          </div>
+
+          <!-- Roles y Scopes -->
+          <div class="roles-box">
+            <h3 class="roles-title">Roles y Scopes Activos en el Token:</h3>
+            <div class="tags-row">
+              <div *ngIf="roles.length > 0; else noRolesList">
+                <span *ngFor="let rol of roles" class="role-tag">
+                  🛡️ Rol: {{ rol }}
+                </span>
+              </div>
+              <ng-template #noRolesList>
+                <span class="neutral-tag">Usuario Estándar Autenticado</span>
+              </ng-template>
+
+              <span *ngFor="let scope of scopes" class="scope-tag">
+                🔑 Scope: {{ scope }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Prueba de Endpoint con Rol Admin -->
+          <div class="security-test-bar">
+            <div>
+              <strong>Prueba de Autorización Estricta (RBAC):</strong>
+              <p class="card-desc">Comprueba la restricción hasAuthority('APPROLE_Admin') en <code>/api/pedidos/admin</code>.</p>
+            </div>
+            <button class="btn-warning-styled" (click)="consultarAdmin()">
+              Probar Endpoint Admin
             </button>
           </div>
-        </div>
-
-        <!-- Alerta de Respuesta / Error -->
-        <div *ngIf="mensajeEstado" [class]="'alert alert-' + tipoMensaje">
-          <strong>{{ tipoMensaje === 'error' ? 'Aviso / Error:' : 'Éxito:' }}</strong>
-          <div>{{ mensajeEstado }}</div>
-        </div>
-
-        <!-- Tabla de Pedidos obtenidos de la BD -->
-        <div *ngIf="pedidos.length > 0" class="table-container">
-          <h4>Listado de Pedidos Persistidos en Base de Datos Cloud ({{ pedidos.length }})</h4>
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Cliente</th>
-                <th>Producto / Servicio</th>
-                <th>Monto (CLP)</th>
-                <th>Estado</th>
-                <th>Fecha</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let p of pedidos">
-                <td>#{{ p.id }}</td>
-                <td><strong>{{ p.cliente }}</strong></td>
-                <td>{{ p.producto }}</td>
-                <td>\${{ p.monto | number }}</td>
-                <td>
-                  <span class="badge-status" [class]="'status-' + p.estado.toLowerCase()">
-                    {{ p.estado }}
-                  </span>
-                </td>
-                <td>{{ p.fecha | date:'dd/MM/yyyy HH:mm' }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        </section>
       </div>
     </div>
-  `,
-  styles: [`
-    .pedidos-container {
-      max-width: 1000px;
-      margin: 0 auto;
-      padding: 30px 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 25px;
-    }
-    .card {
-      background: white;
-      border-radius: 12px;
-      padding: 28px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.06);
-      border: 1px solid #e2e8f0;
-    }
-    .card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      margin-bottom: 20px;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-    .section-title {
-      font-size: 22px;
-      font-weight: 700;
-      color: #0f172a;
-      margin: 0 0 4px 0;
-    }
-    .subsection-title {
-      font-size: 18px;
-      font-weight: 700;
-      color: #1e293b;
-      margin: 0 0 6px 0;
-    }
-    .section-subtitle {
-      font-size: 14px;
-      color: #64748b;
-      margin: 0;
-    }
-    .status-badge {
-      background: #dcfce7;
-      color: #15803d;
-      font-size: 12px;
-      font-weight: 700;
-      padding: 6px 12px;
-      border-radius: 20px;
-    }
-    .claims-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 16px;
-      margin-bottom: 24px;
-    }
-    .claim-item {
-      background: #f8fafc;
-      padding: 12px 16px;
-      border-radius: 8px;
-      border: 1px solid #e2e8f0;
-      display: flex;
-      flex-direction: column;
-    }
-    .claim-label {
-      font-size: 11px;
-      font-weight: 600;
-      color: #64748b;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 4px;
-    }
-    .claim-value {
-      font-size: 14px;
-      font-weight: 600;
-      color: #0f172a;
-    }
-    .text-mono {
-      font-family: monospace;
-      font-size: 12px;
-      word-break: break-all;
-    }
-    .roles-section {
-      background: #f1f5f9;
-      border-radius: 8px;
-      padding: 16px;
-    }
-    .roles-section h4 {
-      margin: 0 0 10px 0;
-      font-size: 13px;
-      color: #334155;
-    }
-    .tags-container {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-    .tag {
-      font-size: 12px;
-      font-weight: 600;
-      padding: 4px 10px;
-      border-radius: 6px;
-    }
-    .tag-role {
-      background: #ede9fe;
-      color: #6d28d9;
-      border: 1px solid #ddd6fe;
-    }
-    .tag-scope {
-      background: #e0f2fe;
-      color: #0369a1;
-      border: 1px solid #bae6fd;
-    }
-    .tag-neutral {
-      background: #e2e8f0;
-      color: #475569;
-    }
-    .btn-group {
-      display: flex;
-      gap: 12px;
-      margin: 20px 0;
-      flex-wrap: wrap;
-    }
-    .btn {
-      padding: 10px 20px;
-      border-radius: 8px;
-      font-weight: 600;
-      font-size: 14px;
-      border: none;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-    .btn-primary {
-      background: #0078d4;
-      color: white;
-    }
-    .btn-primary:hover {
-      background: #006abc;
-    }
-    .btn-warning {
-      background: #f59e0b;
-      color: white;
-    }
-    .btn-warning:hover {
-      background: #d97706;
-    }
-    .btn-success {
-      background: #10b981;
-      color: white;
-    }
-    .btn-success:hover {
-      background: #059669;
-    }
-    .btn-danger {
-      background: #ef4444;
-      color: white;
-    }
-    .btn-danger:hover {
-      background: #dc2626;
-    }
-    .btn-neutral {
-      background: #64748b;
-      color: white;
-    }
-    .btn-neutral:hover {
-      background: #475569;
-    }
-    .alert {
-      padding: 14px 16px;
-      border-radius: 8px;
-      font-size: 14px;
-      margin-bottom: 20px;
-      line-height: 1.5;
-    }
-    .alert-success {
-      background: #ecfdf5;
-      color: #065f46;
-      border: 1px solid #a7f3d0;
-    }
-    .alert-error {
-      background: #fef2f2;
-      color: #991b1b;
-      border: 1px solid #fecaca;
-    }
-    .table-container {
-      margin-top: 15px;
-      overflow-x: auto;
-    }
-    .data-table {
-      width: 100%;
-      border-collapse: collapse;
-      text-align: left;
-      font-size: 14px;
-    }
-    .data-table th {
-      background: #f8fafc;
-      padding: 12px 14px;
-      font-weight: 700;
-      color: #475569;
-      border-bottom: 2px solid #e2e8f0;
-    }
-    .data-table td {
-      padding: 12px 14px;
-      border-bottom: 1px solid #e2e8f0;
-      color: #1e293b;
-    }
-    .badge-status {
-      display: inline-block;
-      padding: 3px 8px;
-      border-radius: 12px;
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-    }
-    .status-completado {
-      background: #dcfce7;
-      color: #15803d;
-    }
-    .status-pendiente {
-      background: #fef3c7;
-      color: #b45309;
-    }
-    .status-en_proceso {
-      background: #e0f2fe;
-      color: #0369a1;
-    }
-  `]
+  `
 })
 export class PedidosComponent implements OnInit {
   account: AccountInfo | null = null;
   roles: string[] = [];
   scopes: string[] = [];
-  pedidos: any[] = [];
+  pedidos: Pedido[] = [];
+
+  // Pestaña activa
+  activeTab: 'pedidos' | 'rabbitmq' | 'seguridad' = 'pedidos';
+
+  // Mensajería y alertas
   mensajeEstado = '';
   tipoMensaje: 'success' | 'error' = 'success';
+  loadingPedido = false;
+
+  // Variables de configuración de endpoints
   apiBaseUrl = environment.apiBaseUrl;
   rabbitAdminApiUrl = environment.rabbitAdminApiUrl || 'http://localhost:8082';
 
-  // Variables para creación de nuevo pedido
+  // Formulario nuevo pedido
   nuevoCliente = 'Sebastián Gallardo';
   nuevoProducto = 'Suscripción Cloud Native Pro';
   nuevoMonto: number | null = 45000;
 
-  // Variables para RabbitAdmin
-  nombreNuevaCola = 'cola.auditoria.pedidos';
+  // Búsqueda en tabla
+  filtroTexto = '';
+
+  // Consola y gestión RabbitMQ
+  nombreNuevaCola = 'cola.auditoria.demo';
+  ultimaRespuestaAdmin: any = null;
 
   constructor(
     private authService: MsalService,
@@ -407,7 +535,6 @@ export class PedidosComponent implements OnInit {
     const activeAccount = this.authService.instance.getActiveAccount();
     if (activeAccount) {
       this.account = activeAccount;
-      // Extraer roles desde idTokenClaims
       const claims = activeAccount.idTokenClaims as any;
       if (claims?.roles && Array.isArray(claims.roles)) {
         this.roles = claims.roles;
@@ -420,12 +547,55 @@ export class PedidosComponent implements OnInit {
     }
   }
 
+  getInitials(name?: string): string {
+    if (!name) return 'U';
+    return name
+      .split(' ')
+      .map((part) => part[0])
+      .slice(0, 2)
+      .join('')
+      .toUpperCase();
+  }
+
+  esAdmin(): boolean {
+    return this.roles.includes('APPROLE_Admin') || this.roles.includes('Admin');
+  }
+
+  calcularTotalFacturado(): number {
+    return this.pedidos.reduce((acc, p) => acc + (p.monto || 0), 0);
+  }
+
+  pedidosFiltrados(): Pedido[] {
+    if (!this.filtroTexto.trim()) {
+      return this.pedidos;
+    }
+    const q = this.filtroTexto.toLowerCase().trim();
+    return this.pedidos.filter(
+      (p) =>
+        p.cliente.toLowerCase().includes(q) ||
+        p.producto.toLowerCase().includes(q) ||
+        String(p.id).includes(q)
+    );
+  }
+
+  cargarPresetValido(): void {
+    this.nuevoCliente = 'Sebastián Gallardo';
+    this.nuevoProducto = 'Suscripción Cloud Native Pro';
+    this.nuevoMonto = 45000;
+  }
+
+  cargarPresetInvalido(): void {
+    this.nuevoCliente = 'Cliente Prueba Error DLQ';
+    this.nuevoProducto = 'Plan Fallo Intencional';
+    this.nuevoMonto = 0;
+  }
+
   cargarPedidos(): void {
     this.http.get<any>(`${environment.apiBaseUrl}/api/pedidos`).subscribe({
       next: (res) => {
         this.pedidos = res.pedidos || [];
         this.tipoMensaje = 'success';
-        this.mensajeEstado = `${res.mensaje} (Consultados ${this.pedidos.length} pedidos de la BD).`;
+        this.mensajeEstado = `${res.mensaje} (${this.pedidos.length} pedidos en Base de Datos).`;
       },
       error: (err) => {
         this.tipoMensaje = 'error';
@@ -435,12 +605,13 @@ export class PedidosComponent implements OnInit {
   }
 
   crearPedido(): void {
-    if (!this.nuevoCliente || !this.nuevoProducto || !this.nuevoMonto) {
+    if (!this.nuevoCliente || !this.nuevoProducto || this.nuevoMonto === null) {
       this.tipoMensaje = 'error';
       this.mensajeEstado = 'Por favor complete cliente, producto y monto.';
       return;
     }
 
+    this.loadingPedido = true;
     const payload = {
       cliente: this.nuevoCliente,
       producto: this.nuevoProducto,
@@ -450,11 +621,13 @@ export class PedidosComponent implements OnInit {
 
     this.http.post<any>(`${environment.apiBaseUrl}/api/pedidos`, payload).subscribe({
       next: (res) => {
+        this.loadingPedido = false;
         this.tipoMensaje = 'success';
-        this.mensajeEstado = `¡Pedido #${res.id} creado en Base de Datos y publicado a RabbitMQ asíncronamente!`;
+        this.mensajeEstado = `¡Pedido #${res.id} guardado en BD y publicado como evento asíncrono en pedidos.exchange!`;
         this.cargarPedidos();
       },
       error: (err) => {
+        this.loadingPedido = false;
         this.tipoMensaje = 'error';
         this.mensajeEstado = `Error al registrar pedido: ${err.error?.message || err.statusText}`;
       }
@@ -477,10 +650,12 @@ export class PedidosComponent implements OnInit {
 
     this.http.post<any>(`${this.rabbitAdminApiUrl}/queues`, body).subscribe({
       next: (res) => {
+        this.ultimaRespuestaAdmin = res;
         this.tipoMensaje = 'success';
         this.mensajeEstado = `[ms-rabbit-admin: 201 Created] Cola '${res.nombre}' creada exitosamente en RabbitMQ.`;
       },
       error: (err) => {
+        this.ultimaRespuestaAdmin = err.error || err;
         this.tipoMensaje = 'error';
         const msg = err.error?.mensaje || err.error?.error || err.message;
         this.mensajeEstado = `[ms-rabbit-admin: ${err.status}] Fallo al crear cola: ${msg}`;
@@ -497,10 +672,12 @@ export class PedidosComponent implements OnInit {
 
     this.http.delete<any>(`${this.rabbitAdminApiUrl}/queues/${this.nombreNuevaCola.trim()}`).subscribe({
       next: (res) => {
+        this.ultimaRespuestaAdmin = res;
         this.tipoMensaje = 'success';
         this.mensajeEstado = `[ms-rabbit-admin: 200 OK] ${res.mensaje}`;
       },
       error: (err) => {
+        this.ultimaRespuestaAdmin = err.error || err;
         this.tipoMensaje = 'error';
         const msg = err.error?.mensaje || err.message;
         this.mensajeEstado = `[ms-rabbit-admin: ${err.status}] ${msg}`;
@@ -508,15 +685,22 @@ export class PedidosComponent implements OnInit {
     });
   }
 
-  consultarEstadoServicios(): void {
-    this.http.get<any>(`${this.rabbitAdminApiUrl}/status`).subscribe({
-      next: (adminRes) => {
+  probarValidacionVacia(): void {
+    const bodyInvalido = {
+      name: '',
+      durable: true
+    };
+
+    this.http.post<any>(`${this.rabbitAdminApiUrl}/queues`, bodyInvalido).subscribe({
+      next: (res) => {
+        this.ultimaRespuestaAdmin = res;
         this.tipoMensaje = 'success';
-        this.mensajeEstado = `Microservicio ms-rabbit-admin activo: [${adminRes.servicio} - ${adminRes.estado}].`;
+        this.mensajeEstado = 'Respuesta inesperada: se esperaba error de validación.';
       },
       error: (err) => {
+        this.ultimaRespuestaAdmin = err.error;
         this.tipoMensaje = 'error';
-        this.mensajeEstado = `No se pudo conectar a ms-rabbit-admin (${this.rabbitAdminApiUrl}): ${err.message}`;
+        this.mensajeEstado = `[Demostración Indicador 8 - HTTP 400 Bad Request]: Se rechazó el nombre vacío con el mensaje: "${err.error?.detalles?.name || err.error?.mensaje}"`;
       }
     });
   }
