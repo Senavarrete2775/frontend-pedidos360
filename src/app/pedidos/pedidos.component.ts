@@ -406,7 +406,7 @@ interface ColaInfo {
                   <line x1="12" y1="5" x2="12" y2="19"></line>
                   <line x1="5" y1="12" x2="19" y2="12"></line>
                 </svg>
-                <span>{{ loadingAdmin ? 'Creando...' : 'POST /queues (Crear Cola)' }}</span>
+                <span>{{ loadingAdmin ? 'Creando...' : 'POST ' }}</span>
               </button>
 
               <button class="btn-admin btn-delete" [disabled]="loadingAdmin" (click)="eliminarColaAdmin()">
@@ -414,7 +414,7 @@ interface ColaInfo {
                   <polyline points="3 6 5 6 21 6"></polyline>
                   <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                 </svg>
-                <span>DELETE /queues (Eliminar)</span>
+                <span>DELETE</span>
               </button>
 
               <button class="btn-admin btn-test" [disabled]="loadingAdmin" (click)="probarValidacionVacia()">
