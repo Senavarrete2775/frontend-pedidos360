@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
@@ -13,6 +13,13 @@ interface Pedido {
   monto: number;
   estado: string;
   fecha: string;
+}
+
+interface ColaInfo {
+  nombre: string;
+  mensajes: number;
+  consumidores: number;
+  existe: boolean;
 }
 
 @Component({
@@ -96,14 +103,14 @@ interface Pedido {
               </svg>
             </div>
             <div class="kpi-details">
-              <span class="kpi-label">Microservicios</span>
-              <span class="kpi-value font-emerald">3 Activos</span>
+              <span class="kpi-label">Colas Activas</span>
+              <span class="kpi-value font-emerald">{{ colasRabbit.length }} en Broker</span>
             </div>
           </div>
         </div>
       </header>
 
-      <!-- Banner de Alertas / Notificaciones Dinámicas -->
+      <!-- Banner de Alertas Globales -->
       <div *ngIf="mensajeEstado" class="notification-banner" [class.banner-error]="tipoMensaje === 'error'" [class.banner-success]="tipoMensaje === 'success'">
         <div class="banner-icon">
           <svg *ngIf="tipoMensaje === 'success'" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -239,7 +246,7 @@ interface Pedido {
                   <circle cx="11" cy="11" r="8"></circle>
                   <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                 </svg>
-                <input type="text" [(ngModel)]="filtroTexto" placeholder="Buscar por cliente o producto..." class="search-input" />
+                <input type="text" [(ngModel)]="filtroTexto" (input)="filtrarTabla()" placeholder="Buscar por cliente o producto..." class="search-input" />
               </div>
               <button class="btn-refresh" (click)="cargarPedidos()" title="Recargar pedidos">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -292,7 +299,7 @@ interface Pedido {
                   </td>
                   <td style="text-align: right;">
                     <button class="btn-delete-row" (click)="eliminarPedido(p.id)" title="Eliminar pedido de la base de datos">
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="3 6 5 6 21 6"></polyline>
                         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                       </svg>
@@ -380,8 +387,14 @@ interface Pedido {
             </div>
             <div>
               <h2 class="card-title">Administrador Dinámico RabbitMQ (Indicadores 6, 7 y 8)</h2>
-              <p class="card-desc">Creación y eliminación de colas vía endpoints REST con validación de nombres.</p>
+              <p class="card-desc">Crea o elimina colas en caliente y visualiza de inmediato los cambios en la tabla.</p>
             </div>
+          </div>
+
+          <!-- Notificación en la misma pestaña -->
+          <div *ngIf="mensajeAdminDirecto" class="admin-toast-banner" [class.toast-success]="tipoAdminDirecto === 'success'" [class.toast-error]="tipoAdminDirecto === 'error'">
+            <span>{{ mensajeAdminDirecto }}</span>
+            <button class="toast-close" (click)="mensajeAdminDirecto = ''">&times;</button>
           </div>
 
           <!-- Alerta de conexión si ms-rabbit-admin está apagado -->
@@ -393,13 +406,13 @@ interface Pedido {
             </svg>
             <div>
               <strong>Microservicio 'ms-rabbit-admin' no detectado en el puerto 8082.</strong>
-              <p style="margin: 2px 0 0 0; font-size: 12px;">Para que los botones de esta pestaña respondan, abre una terminal en <code>ms-rabbit-admin</code> y ejecuta <code>.\\mvnw.cmd spring-boot:run</code>.</p>
+              <p style="margin: 2px 0 0 0; font-size: 12px;">Para que los botones respondan, abre una terminal en <code>ms-rabbit-admin</code> y ejecuta <code>.\\mvnw.cmd spring-boot:run</code>.</p>
             </div>
           </div>
 
           <div class="admin-actions-box">
             <div class="input-group flex-1">
-              <label class="input-label">Nombre de la Cola a Administrar</label>
+              <label class="input-label">Nombre de la Cola a Crear / Eliminar</label>
               <div class="input-wrapper">
                 <input type="text" [(ngModel)]="nombreNuevaCola" placeholder="ej: cola.auditoria.demo" class="styled-input text-mono" />
               </div>
@@ -411,7 +424,7 @@ interface Pedido {
                   <line x1="12" y1="5" x2="12" y2="19"></line>
                   <line x1="5" y1="12" x2="19" y2="12"></line>
                 </svg>
-                POST /queues (Crear)
+                <span>{{ loadingAdmin ? 'Creando...' : 'POST /queues (Crear Cola)' }}</span>
               </button>
 
               <button class="btn-admin btn-delete" [disabled]="loadingAdmin" (click)="eliminarColaAdmin()">
@@ -419,7 +432,7 @@ interface Pedido {
                   <polyline points="3 6 5 6 21 6"></polyline>
                   <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                 </svg>
-                DELETE /queues (Eliminar)
+                <span>DELETE /queues (Eliminar)</span>
               </button>
 
               <button class="btn-admin btn-test" [disabled]="loadingAdmin" (click)="probarValidacionVacia()">
@@ -430,19 +443,72 @@ interface Pedido {
                 </svg>
                 Probar Rechazo DTO Inválido (Indicador 8)
               </button>
-
-              <button class="btn-admin btn-check" (click)="verificarSaludAdmin()">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                  <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                </svg>
-                Verificar Conexión
-              </button>
             </div>
           </div>
 
-          <!-- Consola Visual de Respuesta -->
-          <div *ngIf="ultimaRespuestaAdmin" class="console-box">
+          <!-- TABLA EN VIVO DE COLAS DECLARADAS (Confirmación Visual Inmediata) -->
+          <div class="live-queues-box">
+            <div class="live-queues-header">
+              <div class="live-queues-title">
+                <span class="rabbit-icon-live">🐇</span>
+                <h3>Colas Activas en el Broker RabbitMQ</h3>
+                <span class="count-tag">{{ colasRabbit.length }} declaradas</span>
+              </div>
+              <button class="btn-sync" (click)="cargarColasRabbit()" title="Sincronizar con RabbitMQ">
+                🔄 Sincronizar
+              </button>
+            </div>
+
+            <div class="table-responsive">
+              <table class="queues-table">
+                <thead>
+                  <tr>
+                    <th>Nombre de la Cola</th>
+                    <th>Mensajes Listos</th>
+                    <th>Consumidores Activos</th>
+                    <th>Estado en Broker</th>
+                    <th style="text-align: right;">Acción Directa</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let q of colasRabbit">
+                    <td>
+                      <div class="cell-queue-name">
+                        <span class="queue-icon-pill">Q</span>
+                        <strong>{{ q.nombre }}</strong>
+                        <span *ngIf="q.nombre.includes('dlq')" class="dlq-tag">DLQ</span>
+                      </div>
+                    </td>
+                    <td>
+                      <span class="pill-messages">{{ q.mensajes || 0 }} pendientes</span>
+                    </td>
+                    <td>
+                      <span class="pill-consumers">{{ q.consumidores || 0 }} conectados</span>
+                    </td>
+                    <td>
+                      <span class="badge-broker-online">
+                        <span class="pulse-dot"></span> Activa
+                      </span>
+                    </td>
+                    <td style="text-align: right;">
+                      <button class="btn-delete-queue-pill" (click)="eliminarColaDirecto(q.nombre)" title="Eliminar cola">
+                        🗑️ Eliminar
+                      </button>
+                    </td>
+                  </tr>
+
+                  <tr *ngIf="colasRabbit.length === 0">
+                    <td colspan="5" style="text-align: center; padding: 24px; color: #64748b;">
+                      No hay colas registradas o ms-rabbit-admin está desconectado.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Consola Visual de Respuesta JSON -->
+          <div *ngIf="ultimaRespuestaAdmin" class="console-box" style="margin-top: 20px;">
             <div class="console-header">
               <div class="console-dots">
                 <span class="dot-red"></span><span class="dot-yellow"></span><span class="dot-green"></span>
@@ -533,14 +599,19 @@ export class PedidosComponent implements OnInit {
   // Pestaña activa
   activeTab: 'pedidos' | 'rabbitmq' | 'seguridad' = 'pedidos';
 
-  // Mensajería y alertas
+  // Mensajería y alertas globales
   mensajeEstado = '';
   tipoMensaje: 'success' | 'error' = 'success';
   loadingPedido = false;
   loadingAdmin = false;
 
-  // Estado del microservicio administrador
+  // Notificaciones directas en pestaña RabbitMQ
+  mensajeAdminDirecto = '';
+  tipoAdminDirecto: 'success' | 'error' = 'success';
+
+  // Estado del microservicio administrador y lista de colas
   adminOnline: boolean | null = null;
+  colasRabbit: ColaInfo[] = [];
 
   // Variables de configuración de endpoints
   apiBaseUrl = environment.apiBaseUrl;
@@ -560,7 +631,9 @@ export class PedidosComponent implements OnInit {
 
   constructor(
     private authService: MsalService,
-    private http: HttpClient
+    private http: HttpClient,
+    private ngZone: NgZone,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -605,6 +678,10 @@ export class PedidosComponent implements OnInit {
       .reduce((acc, p) => acc + (p.monto || 0), 0);
   }
 
+  filtrarTabla(): void {
+    this.cdr.detectChanges();
+  }
+
   pedidosFiltrados(): Pedido[] {
     if (!this.filtroTexto.trim()) {
       return this.pedidos;
@@ -627,12 +704,18 @@ export class PedidosComponent implements OnInit {
   simularFalloDLQDirecto(): void {
     this.http.post<any>(`${environment.apiBaseUrl}/api/pedidos/simular-error-dlq`, {}).subscribe({
       next: (res) => {
-        this.tipoMensaje = 'success';
-        this.mensajeEstado = res.mensaje;
+        this.ngZone.run(() => {
+          this.tipoMensaje = 'success';
+          this.mensajeEstado = res.mensaje;
+          this.cdr.detectChanges();
+        });
       },
       error: (err) => {
-        this.tipoMensaje = 'error';
-        this.mensajeEstado = err.error?.message || err.message || 'Error al emitir evento de fallo a RabbitMQ.';
+        this.ngZone.run(() => {
+          this.tipoMensaje = 'error';
+          this.mensajeEstado = err.error?.message || err.message || 'Error al emitir evento de fallo a RabbitMQ.';
+          this.cdr.detectChanges();
+        });
       }
     });
   }
@@ -640,12 +723,17 @@ export class PedidosComponent implements OnInit {
   cargarPedidos(): void {
     this.http.get<any>(`${environment.apiBaseUrl}/api/pedidos`).subscribe({
       next: (res) => {
-        this.pedidos = res.pedidos || [];
-        this.tipoMensaje = 'success';
+        this.ngZone.run(() => {
+          this.pedidos = res.pedidos || [];
+          this.cdr.detectChanges();
+        });
       },
       error: (err) => {
-        this.tipoMensaje = 'error';
-        this.mensajeEstado = err.error?.message || `Error ${err.status}: ${err.statusText}`;
+        this.ngZone.run(() => {
+          this.tipoMensaje = 'error';
+          this.mensajeEstado = err.error?.message || `Error ${err.status}: ${err.statusText}`;
+          this.cdr.detectChanges();
+        });
       }
     });
   }
@@ -673,15 +761,25 @@ export class PedidosComponent implements OnInit {
 
     this.http.post<any>(`${environment.apiBaseUrl}/api/pedidos`, payload).subscribe({
       next: (res) => {
-        this.loadingPedido = false;
-        this.tipoMensaje = 'success';
-        this.mensajeEstado = `¡Pedido #${res.id} guardado en BD y publicado como evento asíncrono en pedidos.exchange!`;
-        this.cargarPedidos();
+        this.ngZone.run(() => {
+          this.loadingPedido = false;
+          this.tipoMensaje = 'success';
+          this.mensajeEstado = `¡Pedido #${res.id} creado en BD y publicado asíncronamente en pedidos.exchange!`;
+          // Inserción inmediata para respuesta reactiva sin retrasos visuales
+          this.pedidos = [res, ...this.pedidos];
+          this.nuevoCliente = '';
+          this.nuevoProducto = '';
+          this.nuevoMonto = null;
+          this.cdr.detectChanges();
+        });
       },
       error: (err) => {
-        this.loadingPedido = false;
-        this.tipoMensaje = 'error';
-        this.mensajeEstado = err.error?.message || err.error?.error || `Error al registrar pedido: ${err.statusText}`;
+        this.ngZone.run(() => {
+          this.loadingPedido = false;
+          this.tipoMensaje = 'error';
+          this.mensajeEstado = err.error?.message || err.error?.error || `Error al registrar pedido: ${err.statusText}`;
+          this.cdr.detectChanges();
+        });
       }
     });
   }
@@ -689,13 +787,19 @@ export class PedidosComponent implements OnInit {
   eliminarPedido(id: number): void {
     this.http.delete<any>(`${environment.apiBaseUrl}/api/pedidos/${id}`).subscribe({
       next: (res) => {
-        this.tipoMensaje = 'success';
-        this.mensajeEstado = res.mensaje || `Pedido #${id} eliminado con éxito.`;
-        this.cargarPedidos();
+        this.ngZone.run(() => {
+          this.pedidos = this.pedidos.filter((p) => p.id !== id);
+          this.tipoMensaje = 'success';
+          this.mensajeEstado = res.mensaje || `Pedido #${id} eliminado con éxito de la base de datos.`;
+          this.cdr.detectChanges();
+        });
       },
       error: (err) => {
-        this.tipoMensaje = 'error';
-        this.mensajeEstado = err.error?.message || `No se pudo eliminar el pedido #${id}.`;
+        this.ngZone.run(() => {
+          this.tipoMensaje = 'error';
+          this.mensajeEstado = err.error?.message || `No se pudo eliminar el pedido #${id}.`;
+          this.cdr.detectChanges();
+        });
       }
     });
   }
@@ -703,29 +807,57 @@ export class PedidosComponent implements OnInit {
   cambiarTabRabbitmq(): void {
     this.activeTab = 'rabbitmq';
     this.verificarSaludAdmin();
+    this.cargarColasRabbit();
   }
 
   verificarSaludAdmin(): void {
     this.http.get<any>(`${this.rabbitAdminApiUrl}/status`).subscribe({
       next: (res) => {
-        this.adminOnline = true;
+        this.ngZone.run(() => {
+          this.adminOnline = true;
+          this.cargarColasRabbit();
+          this.cdr.detectChanges();
+        });
       },
       error: (err) => {
-        this.adminOnline = false;
+        this.ngZone.run(() => {
+          this.adminOnline = false;
+          this.cdr.detectChanges();
+        });
+      }
+    });
+  }
+
+  cargarColasRabbit(): void {
+    this.http.get<any[]>(`${this.rabbitAdminApiUrl}/queues`).subscribe({
+      next: (colas) => {
+        this.ngZone.run(() => {
+          this.colasRabbit = colas || [];
+          this.adminOnline = true;
+          this.cdr.detectChanges();
+        });
+      },
+      error: (err) => {
+        this.ngZone.run(() => {
+          if (err.status === 0) {
+            this.adminOnline = false;
+          }
+          this.cdr.detectChanges();
+        });
       }
     });
   }
 
   crearColaAdmin(): void {
     if (!this.nombreNuevaCola.trim()) {
-      this.tipoMensaje = 'error';
-      this.mensajeEstado = 'El nombre de la cola no puede estar vacío.';
+      this.mostrarAlertaAdmin('El nombre de la cola no puede estar vacío.', 'error');
       return;
     }
 
     this.loadingAdmin = true;
+    const cleanName = this.nombreNuevaCola.trim();
     const body = {
-      name: this.nombreNuevaCola.trim(),
+      name: cleanName,
       durable: true,
       exclusive: false,
       autoDelete: false
@@ -733,60 +865,72 @@ export class PedidosComponent implements OnInit {
 
     this.http.post<any>(`${this.rabbitAdminApiUrl}/queues`, body).subscribe({
       next: (res) => {
-        this.loadingAdmin = false;
-        this.adminOnline = true;
-        this.ultimaRespuestaAdmin = res;
-        this.tipoMensaje = 'success';
-        this.mensajeEstado = `[ms-rabbit-admin: 201 Created] Cola '${res.nombre}' creada exitosamente en RabbitMQ.`;
+        this.ngZone.run(() => {
+          this.loadingAdmin = false;
+          this.adminOnline = true;
+          this.ultimaRespuestaAdmin = res;
+          this.mostrarAlertaAdmin(`¡Cola '${res.nombre}' creada y verificada en RabbitMQ!`, 'success');
+          this.cargarColasRabbit();
+          this.cdr.detectChanges();
+        });
       },
       error: (err) => {
-        this.loadingAdmin = false;
-        const msg = err.status === 0
-          ? 'No se pudo conectar a ms-rabbit-admin en puerto 8082. Asegúrate de tener iniciado el microservicio con .\\mvnw.cmd spring-boot:run.'
-          : (err.error?.mensaje || err.error?.error || err.message);
+        this.ngZone.run(() => {
+          this.loadingAdmin = false;
+          const msg = err.status === 0
+            ? 'No se pudo conectar a ms-rabbit-admin en puerto 8082. Asegúrate de iniciarlo con .\\mvnw.cmd spring-boot:run.'
+            : (err.error?.mensaje || err.error?.error || err.message);
 
-        this.adminOnline = err.status !== 0;
-        this.ultimaRespuestaAdmin = {
-          codigoHttp: err.status || 0,
-          error: msg,
-          detalles: err.error?.detalles || 'Verifica que ms-rabbit-admin esté corriendo en el puerto 8082.'
-        };
-        this.tipoMensaje = 'error';
-        this.mensajeEstado = `[ms-rabbit-admin: ${err.status}] Fallo al crear cola: ${msg}`;
+          this.adminOnline = err.status !== 0;
+          this.ultimaRespuestaAdmin = {
+            codigoHttp: err.status || 0,
+            error: msg,
+            detalles: err.error?.detalles || 'Verifica que ms-rabbit-admin esté corriendo en el puerto 8082.'
+          };
+          this.mostrarAlertaAdmin(`Fallo al crear cola: ${msg}`, 'error');
+          this.cdr.detectChanges();
+        });
       }
     });
   }
 
   eliminarColaAdmin(): void {
     if (!this.nombreNuevaCola.trim()) {
-      this.tipoMensaje = 'error';
-      this.mensajeEstado = 'Especifique el nombre de la cola a eliminar.';
+      this.mostrarAlertaAdmin('Especifique el nombre de la cola a eliminar.', 'error');
       return;
     }
+    this.eliminarColaDirecto(this.nombreNuevaCola.trim());
+  }
 
+  eliminarColaDirecto(nombre: string): void {
     this.loadingAdmin = true;
-    this.http.delete<any>(`${this.rabbitAdminApiUrl}/queues/${this.nombreNuevaCola.trim()}`).subscribe({
+    this.http.delete<any>(`${this.rabbitAdminApiUrl}/queues/${nombre}`).subscribe({
       next: (res) => {
-        this.loadingAdmin = false;
-        this.adminOnline = true;
-        this.ultimaRespuestaAdmin = res;
-        this.tipoMensaje = 'success';
-        this.mensajeEstado = `[ms-rabbit-admin: 200 OK] ${res.mensaje}`;
+        this.ngZone.run(() => {
+          this.loadingAdmin = false;
+          this.adminOnline = true;
+          this.ultimaRespuestaAdmin = res;
+          this.mostrarAlertaAdmin(`¡Cola '${nombre}' eliminada exitosamente de RabbitMQ!`, 'success');
+          // Actualización inmediata de la lista de colas
+          this.colasRabbit = this.colasRabbit.filter((q) => q.nombre !== nombre);
+          this.cdr.detectChanges();
+        });
       },
       error: (err) => {
-        this.loadingAdmin = false;
-        const msg = err.status === 0
-          ? 'No se pudo conectar a ms-rabbit-admin en puerto 8082. ¿Está iniciado?'
-          : (err.error?.mensaje || err.message);
+        this.ngZone.run(() => {
+          this.loadingAdmin = false;
+          const msg = err.status === 0
+            ? 'No se pudo conectar a ms-rabbit-admin en puerto 8082.'
+            : (err.error?.mensaje || err.message);
 
-        this.adminOnline = err.status !== 0;
-        this.ultimaRespuestaAdmin = {
-          codigoHttp: err.status || 0,
-          error: msg,
-          detalles: 'Verifica la consola de ms-rabbit-admin.'
-        };
-        this.tipoMensaje = 'error';
-        this.mensajeEstado = `[ms-rabbit-admin: ${err.status}] ${msg}`;
+          this.adminOnline = err.status !== 0;
+          this.ultimaRespuestaAdmin = {
+            codigoHttp: err.status || 0,
+            error: msg
+          };
+          this.mostrarAlertaAdmin(`Fallo al eliminar cola: ${msg}`, 'error');
+          this.cdr.detectChanges();
+        });
       }
     });
   }
@@ -800,44 +944,59 @@ export class PedidosComponent implements OnInit {
 
     this.http.post<any>(`${this.rabbitAdminApiUrl}/queues`, bodyInvalido).subscribe({
       next: (res) => {
-        this.loadingAdmin = false;
-        this.adminOnline = true;
-        this.ultimaRespuestaAdmin = res;
-        this.tipoMensaje = 'success';
-        this.mensajeEstado = 'Respuesta inesperada: se esperaba error de validación.';
+        this.ngZone.run(() => {
+          this.loadingAdmin = false;
+          this.adminOnline = true;
+          this.ultimaRespuestaAdmin = res;
+          this.mostrarAlertaAdmin('Respuesta inesperada: se esperaba error de validación.', 'error');
+          this.cdr.detectChanges();
+        });
       },
       error: (err) => {
-        this.loadingAdmin = false;
-        if (err.status === 0) {
-          this.adminOnline = false;
-          this.ultimaRespuestaAdmin = {
-            codigoHttp: 0,
-            error: 'No se pudo conectar a ms-rabbit-admin en el puerto 8082.',
-            sugerencia: 'Asegúrate de ejecutar .\\mvnw.cmd spring-boot:run en la carpeta ms-rabbit-admin.'
-          };
-          this.tipoMensaje = 'error';
-          this.mensajeEstado = 'ms-rabbit-admin no está respondiendo en el puerto 8082.';
-          return;
-        }
-
-        this.adminOnline = true;
-        this.ultimaRespuestaAdmin = err.error || err;
-        this.tipoMensaje = 'error';
-        this.mensajeEstado = `[Demostración Indicador 8 - HTTP 400 Bad Request]: Se rechazó el nombre vacío con el mensaje: "${err.error?.detalles?.name || err.error?.mensaje}"`;
+        this.ngZone.run(() => {
+          this.loadingAdmin = false;
+          if (err.status === 0) {
+            this.adminOnline = false;
+            this.ultimaRespuestaAdmin = {
+              codigoHttp: 0,
+              error: 'ms-rabbit-admin desconectado en puerto 8082.'
+            };
+            this.mostrarAlertaAdmin('ms-rabbit-admin no está respondiendo en el puerto 8082.', 'error');
+          } else {
+            this.adminOnline = true;
+            this.ultimaRespuestaAdmin = err.error || err;
+            const errorMsg = err.error?.detalles?.name || err.error?.mensaje || 'Validación rechazada.';
+            this.mostrarAlertaAdmin(`[Indicador 8 - HTTP 400 Bad Request]: Rechazo exitoso -> "${errorMsg}"`, 'success');
+          }
+          this.cdr.detectChanges();
+        });
       }
     });
+  }
+
+  mostrarAlertaAdmin(mensaje: string, tipo: 'success' | 'error'): void {
+    this.mensajeAdminDirecto = mensaje;
+    this.tipoAdminDirecto = tipo;
+    this.mensajeEstado = mensaje;
+    this.tipoMensaje = tipo;
   }
 
   consultarAdmin(): void {
     this.http.get<any>(`${environment.apiBaseUrl}/api/pedidos/admin`).subscribe({
       next: (res) => {
-        this.tipoMensaje = 'success';
-        this.mensajeEstado = `[200 OK - Autorizado] ${res.mensaje} Métricas obtenidas: Ventas $${res.metricas?.totalVentas}.`;
+        this.ngZone.run(() => {
+          this.tipoMensaje = 'success';
+          this.mensajeEstado = `[200 OK - Autorizado] ${res.mensaje} Métricas obtenidas: Ventas $${res.metricas?.totalVentas}.`;
+          this.cdr.detectChanges();
+        });
       },
       error: (err) => {
-        this.tipoMensaje = 'error';
-        const msg = err.error?.message || err.message;
-        this.mensajeEstado = `[Código HTTP ${err.status} - Rechazado]: ${msg}`;
+        this.ngZone.run(() => {
+          this.tipoMensaje = 'error';
+          const msg = err.error?.message || err.message;
+          this.mensajeEstado = `[Código HTTP ${err.status} - Rechazado]: ${msg}`;
+          this.cdr.detectChanges();
+        });
       }
     });
   }
