@@ -31,7 +31,7 @@ export function MSALInterceptorConfigFactory() {
   return {
     interactionType: InteractionType.Redirect,
     protectedResourceMap: new Map([
-      [environment.apiBaseUrl + '/api/pedidos', environment.azure.protectedResourceScopes]
+      [environment.apiBaseUrl + '/api/*', environment.azure.protectedResourceScopes]
     ])
   };
 }
