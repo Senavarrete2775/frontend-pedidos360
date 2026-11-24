@@ -14,13 +14,32 @@ import { environment } from '../../environments/environment';
         <div class="badge-tag">Cloud Native Architecture</div>
         <h1 class="hero-title">Sistema de Gestión Pedidos360</h1>
         <p class="hero-subtitle">
-          Arquitectura desacoplada en la nube con Frontend Angular, Backend BFF Spring Boot en AWS EC2, Base de Datos y autenticación federada con Azure Active Directory (MSAL).
+          Arquitectura de microservicios en la nube: frontend Angular, backend Spring Boot con PostgreSQL en AWS, mensajería asíncrona con RabbitMQ y Kafka, y autenticación federada con Azure Active Directory (MSAL).
         </p>
+
+        <div class="pipeline" aria-label="Arquitectura general">
+          <span class="pipe-step">Angular</span>
+          <span class="pipe-arrow">→</span>
+          <span class="pipe-step">API Gateway (JWT)</span>
+          <span class="pipe-arrow">→</span>
+          <span class="pipe-step">Backend + PostgreSQL</span>
+          <span class="pipe-arrow">→</span>
+          <span class="pipe-step pipe-rabbit">RabbitMQ</span>
+          <span class="pipe-step pipe-kafka">Kafka</span>
+          <span class="pipe-arrow">→</span>
+          <span class="pipe-step">Consumidores</span>
+        </div>
 
         <div class="actions-grid">
           <div class="action-card">
+            <h3>Flujo de mensajería en vivo</h3>
+            <p>Mira cómo un pedido viaja por RabbitMQ y Kafka, qué consumidores lo procesan y qué pasa cuando un mensaje falla (DLQ).</p>
+            <a routerLink="/mensajeria" class="btn btn-primary">Ver el flujo asíncrono</a>
+          </div>
+
+          <div class="action-card">
             <h3>Ruta Protegida (MsalGuard)</h3>
-            <p>Accede al panel de pedidos. Si no has iniciado sesión, el Guard te redirigirá automáticamente a Azure AD.</p>
+            <p>Panel de pedidos y administración de colas. Si no has iniciado sesión, el Guard te redirigirá automáticamente a Azure AD.</p>
             <a routerLink="/pedidos" class="btn btn-primary">Ir a Pedidos (Protegido)</a>
           </div>
 
@@ -81,6 +100,26 @@ import { environment } from '../../environments/environment';
       gap: 20px;
       text-align: left;
     }
+    .pipeline {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin: 0 0 30px 0;
+    }
+    .pipe-step {
+      font-size: 12.5px;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 8px;
+      background: #f1f5f9;
+      color: #334155;
+      border: 1px solid #e2e8f0;
+    }
+    .pipe-rabbit { background: #fff7ed; border-color: #fed7aa; color: #9a3412; }
+    .pipe-kafka { background: #f5f3ff; border-color: #ddd6fe; color: #5b21b6; }
+    .pipe-arrow { color: #94a3b8; font-size: 16px; }
     .action-card {
       border: 1px solid #e2e8f0;
       border-radius: 12px;
