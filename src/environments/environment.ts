@@ -2,6 +2,8 @@ export const environment = {
   production: false,
   apiBaseUrl: 'http://localhost:8080',
   rabbitAdminApiUrl: 'http://localhost:8082',
+  kafkaAdminApiUrl: 'http://localhost:8083',
+  notificacionesApiUrl: 'http://localhost:8081',
   azure: {
     clientId: '889d23a5-8665-4e52-8541-02dfba7e2786', // ID de la app de Frontend
     tenantId: 'bb5324af-c266-41ed-b36c-a971641c7af2',

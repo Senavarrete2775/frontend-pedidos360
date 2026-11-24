@@ -15,7 +15,11 @@
     <nav class="nav-links">
       <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" class="nav-link">Inicio</a>
       <a routerLink="/pedidos" routerLinkActive="active" class="nav-link">
-        Pedidos & Mensajería
+        Pedidos
+        <span class="nav-shield" title="Ruta protegida con MsalGuard">🔒 Guard</span>
+      </a>
+      <a routerLink="/mensajeria" routerLinkActive="active" class="nav-link">
+        Flujo de mensajería
         <span class="nav-shield" title="Ruta protegida con MsalGuard">🔒 Guard</span>
       </a>
     </nav>
@@ -49,6 +53,6 @@
 <footer class="app-footer">
   <div class="footer-container">
     <span>Pedidos360 Enterprise &bull; Plataforma Cloud Native</span>
-    <span class="tech-stack">Angular + MSAL &bull; Microservicios Spring Boot &bull; RabbitMQ &bull; Azure Active Directory</span>
+    <span class="tech-stack">Angular + MSAL &bull; Spring Boot &bull; PostgreSQL &bull; RabbitMQ &bull; Kafka &bull; AWS API Gateway &bull; Azure AD</span>
   </div>
 </footer>
